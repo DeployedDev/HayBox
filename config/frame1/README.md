@@ -69,6 +69,22 @@ above it at `0x08020000`. To flash:
 Recovery is always hold-**Up** at power-on, so a bad flash cannot brick the
 board.
 
+### Flashing a prebuilt `firmware.bin` on Windows
+
+The board uses standard STM32 DFU, so any DFU tool works. Pick **one** of
+these per PC - they install different drivers for the DFU device and conflict.
+
+- **STM32CubeProgrammer** (ST's official GUI; easiest). Install it, hold
+  **Up** and plug in, choose connection type **USB** -> Refresh -> Connect.
+  In *Erasing & Programming*, browse to `firmware.bin`, set **Start address
+  `0x08020000`**, tick Verify, and Start Programming. Re-plug when done.
+- **dfu-util**. With the board in DFU, run Zadig once and install **WinUSB**
+  on "STM32 BOOTLOADER", then flash with the same command as above:
+  `dfu-util -a 0 -s 0x08020000 -D firmware.bin`.
+
+On Windows a bare plug-in (XInput) is recognised as an Xbox 360 controller and
+works in Dolphin through its native XInput backend with no extra mapping.
+
 ## Using with Dolphin (DInput mode - hold Z at plug-in)
 
 In DInput mode the board enumerates as **`Adafruit FRAME1`**. Select it as the
