@@ -4,6 +4,7 @@
 #include "comms/ConfiguratorBackend.hpp"
 #include "comms/DInputBackend.hpp"
 #include "comms/NintendoSwitchBackend.hpp"
+#include "comms/PumpedSerial.hpp"
 #include "comms/XInputBackend.hpp"
 #include "core/CommunicationBackend.hpp"
 #include "core/mode_selection.hpp"
@@ -155,8 +156,16 @@ void init_primary_backend(
         default:
             delete primary_backend;
             Serial.begin(115200);
-            primary_backend =
-                new ConfiguratorBackend(inputs, input_sources, input_source_count, config, Serial);
+            // Hand the Configurator a Serial that services USB while it blocks on
+            // reads (see PumpedSerial.hpp); static so it outlives this call.
+            static PumpedSerial pumped_serial(Serial);
+            primary_backend = new ConfiguratorBackend(
+                inputs,
+                input_sources,
+                input_source_count,
+                config,
+                pumped_serial
+            );
     }
 }
 
