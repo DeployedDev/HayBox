@@ -30,17 +30,28 @@ obvious:
 
 ### Analog R trigger (light / medium shield)
 
-Bind **R-Analog** to the inverted axis expression:
+Bind **R-Analog** to the inverted axis expression and set that input's
+**Range to 50%**:
 
 ```
 !`Axis 5-`
 ```
 
-The GameCube analog triggers rest at the *floor* of their HID axis (Dolphin
-reads a resting trigger as full `Axis N-`), so the binding has to be inverted to
-read rest = 0 and press = full. With this, LS gives a light shield and MS a
-medium shield. L is digital in Melee, so bind **L** to its digital button and
-leave **L-Analog** empty.
+Two things are needed:
+
+- **Inversion** (the expression above). The GameCube analog triggers rest at the
+  *floor* of their HID axis (Dolphin reads a resting trigger as full `Axis N-`),
+  so the binding is inverted to read rest = 0 and press = full.
+- **Range 50%.** The inverted half-axis treats the axis *midpoint* as "full," so
+  every value comes through roughly doubled (LS 49 -> ~100, MS 94 -> ~190). Melee
+  treats analog >= 140 as a hard shield, so an un-halved MS reads as a full
+  shield instead of medium. Setting the R-Analog input's Range to 50% scales it
+  back: LS ~= 49 (light), MS ~= 94 (medium). You can confirm the values with
+  Dolphin's TAS Input window (the L/R sliders read 0-255).
+
+Hard shield is unaffected either way -- it comes from the digital **R**
+(`Button 5`), not the analog value. L is digital in Melee, so bind **L** to its
+digital button and leave **L-Analog** empty.
 
 ### Enable "Background Input"
 
