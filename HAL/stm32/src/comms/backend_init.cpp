@@ -1,6 +1,8 @@
 #include "comms/backend_init.hpp"
 
+#include "comms/B0XXInputViewer.hpp"
 #include "comms/DInputBackend.hpp"
+#include "comms/XInputBackend.hpp"
 #include "core/CommunicationBackend.hpp"
 #include "core/mode_selection.hpp"
 #include "core/pinout.hpp"
@@ -13,11 +15,13 @@
 /*
  * STM32 (Frame1) backend initialization.
  *
- * Mirrors HAL/pico/src/comms/backend_init.cpp but trimmed to the USB-HID subset
- * that applies to a USB-only board. For this first milestone only the DInput
- * backend is wired up; XInput / Nintendo Switch / Configurator land in a later
- * commit. Any non-DInput id falls back to DInput so the device always
- * enumerates as something usable.
+ * Mirrors HAL/pico/src/comms/backend_init.cpp, trimmed to the USB subset that
+ * applies to a USB-only board (no joybus/NES console backends). The plug-in
+ * button holds and defaults come from config_defaults.hpp and match stock
+ * HayBox: XInput by default, hold Z for DInput, hold X for Nintendo Switch,
+ * hold Start for the Configurator. Switch and Configurator land in following
+ * commits; until the Configurator (stock's fallback) exists, unknown ids fall
+ * back to DInput so the device always enumerates as something usable.
  *
  * The RP2040 version also consults the watchdog SCRATCH registers to carry a
  * temporarily-selected backend across a reboot; there is no equivalent here
@@ -126,6 +130,11 @@ void init_primary_backend(
     (void)config;
     (void)pinout;
     switch (backend_id) {
+        case COMMS_BACKEND_XINPUT:
+            if (primary_backend == nullptr) {
+                primary_backend = new XInputBackend(inputs, input_sources, input_source_count);
+            }
+            break;
         case COMMS_BACKEND_DINPUT:
         default:
             if (primary_backend == nullptr) {
@@ -147,17 +156,26 @@ size_t init_secondary_backends(
     Config &config,
     const Pinout &pinout
 ) {
-    (void)backend_id;
-    (void)inputs;
-    (void)input_sources;
-    (void)input_source_count;
     (void)config;
     (void)pinout;
 
-    // Single-backend setup for now (no B0XX input viewer / secondary backends
-    // until the configurator phase).
-    size_t backend_count = 1;
-    backends = new CommunicationBackend *[backend_count] { primary_backend };
+    size_t backend_count = 0;
+
+    // As on the pico: the USB gamepad backends also stream state to the B0XX
+    // input viewer over the CDC serial port.
+    switch (backend_id) {
+        case COMMS_BACKEND_DINPUT:
+        case COMMS_BACKEND_XINPUT:
+            backend_count = 2;
+            backends = new CommunicationBackend *[backend_count] {
+                primary_backend, new B0XXInputViewer(inputs, input_sources, input_source_count)
+            };
+            break;
+        default:
+            backend_count = 1;
+            backends = new CommunicationBackend *[backend_count] { primary_backend };
+    }
+
     return backend_count;
 }
 
