@@ -129,4 +129,10 @@ void loop() {
     if (current_kb_mode != nullptr) {
         current_kb_mode->SendReport(backends[0]->GetInputs());
     }
+
+    // Non-built-in TinyUSB core: Adafruit's CDC write() only fills a FIFO and
+    // relies on the core to flush it to the host (arduino-pico does this behind
+    // the scenes). Here we must do it ourselves, or the Configurator's replies
+    // and the B0XX input viewer's stream sit in the FIFO and never go out.
+    TinyUSB_Device_FlushCDC();
 }
