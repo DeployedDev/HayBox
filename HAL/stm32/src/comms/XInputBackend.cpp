@@ -3,13 +3,18 @@
 #include "core/CommunicationBackend.hpp"
 #include "core/state.hpp"
 
+// Declares Serial (Adafruit TinyUSB's CDC, our only Serial with HWSERIAL_NONE)
+// and TinyUSBDevice. On the pico Serial is a core-wide global, so the pico
+// version needs no such include; the XInput header alone does not provide it.
+#include <Adafruit_TinyUSB.h>
 #include <Adafruit_USBD_XInput.hpp>
 
 /*
- * Mirrors HAL/pico/src/comms/XInputBackend.cpp. The only platform difference is
- * the wait-for-ready loop: the RP2040 core services TinyUSB in the background so
- * it can spin on tight_loop_contents(), whereas on STM32duino the device task is
- * only pumped when we call it, so we yield() (which runs tud_task()) instead.
+ * Mirrors HAL/pico/src/comms/XInputBackend.cpp. Platform differences: the
+ * explicit <Adafruit_TinyUSB.h> include above, and the wait-for-ready loop -
+ * the RP2040 core services TinyUSB in the background so it can spin on
+ * tight_loop_contents(), whereas on STM32duino the device task is only pumped
+ * when we call it, so we yield() (which runs tud_task()) instead.
  */
 
 XInputBackend::XInputBackend(
