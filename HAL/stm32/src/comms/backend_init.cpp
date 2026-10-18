@@ -2,6 +2,7 @@
 
 #include "comms/B0XXInputViewer.hpp"
 #include "comms/DInputBackend.hpp"
+#include "comms/NintendoSwitchBackend.hpp"
 #include "comms/XInputBackend.hpp"
 #include "core/CommunicationBackend.hpp"
 #include "core/mode_selection.hpp"
@@ -19,9 +20,9 @@
  * applies to a USB-only board (no joybus/NES console backends). The plug-in
  * button holds and defaults come from config_defaults.hpp and match stock
  * HayBox: XInput by default, hold Z for DInput, hold X for Nintendo Switch,
- * hold Start for the Configurator. Switch and Configurator land in following
- * commits; until the Configurator (stock's fallback) exists, unknown ids fall
- * back to DInput so the device always enumerates as something usable.
+ * hold Start for the Configurator. The Configurator lands in a following
+ * commit; until it (stock's fallback) exists, unknown ids fall back to DInput
+ * so the device always enumerates as something usable.
  *
  * The RP2040 version also consults the watchdog SCRATCH registers to carry a
  * temporarily-selected backend across a reboot; there is no equivalent here
@@ -133,6 +134,13 @@ void init_primary_backend(
         case COMMS_BACKEND_XINPUT:
             if (primary_backend == nullptr) {
                 primary_backend = new XInputBackend(inputs, input_sources, input_source_count);
+            }
+            break;
+        case COMMS_BACKEND_NINTENDO_SWITCH:
+            if (primary_backend == nullptr) {
+                NintendoSwitchBackend::RegisterDescriptor();
+                primary_backend =
+                    new NintendoSwitchBackend(inputs, input_sources, input_source_count);
             }
             break;
         case COMMS_BACKEND_DINPUT:
