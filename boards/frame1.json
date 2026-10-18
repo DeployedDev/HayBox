@@ -1,16 +1,15 @@
 {
   "build": {
+    "arduino": {
+      "variant_h": "variant_generic.h"
+    },
     "core": "stm32",
     "cpu": "cortex-m4",
-    "extra_flags": "-DSTM32F3xx -DSTM32F303xE",
+    "extra_flags": "-DSTM32F3xx -DSTM32F303xE -DARDUINO_GENERIC_F303VETX",
     "f_cpu": "72000000L",
-    "framework_extra_flags": {
-      "arduino": "-DHAL_UART_MODULE_ENABLED"
-    },
     "mcu": "stm32f303vet6",
     "product_line": "STM32F303xE",
-    "variant": "STM32F3xx/F303V(D-E)(H-T)",
-    "variant_h": "variant_generic.h"
+    "variant": "STM32F3xx/F303V(D-E)(H-T)"
   },
   "debug": {
     "default_tools": ["stlink"],
