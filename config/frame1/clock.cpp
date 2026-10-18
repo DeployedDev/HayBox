@@ -27,9 +27,11 @@ extern "C" void SystemClock_Config(void) {
     RCC_OscInitTypeDef osc = {};
     osc.OscillatorType = RCC_OSCILLATORTYPE_HSE;
     osc.HSEState = RCC_HSE_ON; // crystal, not RCC_HSE_BYPASS
-    osc.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
     osc.PLL.PLLState = RCC_PLL_ON;
     osc.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+    // On F3 the HSE->PLL prediv lives in the PLL sub-struct (there is no
+    // top-level HSEPredivValue as on F4). HSE 8 MHz / 1 = 8 MHz into the PLL.
+    osc.PLL.PREDIV = RCC_PREDIV_DIV1;
     osc.PLL.PLLMUL = RCC_PLL_MUL9; // 8 MHz * 9 = 72 MHz
     if (HAL_RCC_OscConfig(&osc) != HAL_OK) {
         while (true) {
