@@ -23,8 +23,12 @@ uint16_t GCAdapterUSB::getInterfaceDescriptor(uint8_t, uint8_t *buf, uint16_t bu
     }
 
     uint8_t const itfnum = TinyUSBDevice.allocInterface(1);
-    uint8_t const ep_in = TinyUSBDevice.allocEndpoint(TUSB_DIR_IN);
-    uint8_t const ep_out = TinyUSBDevice.allocEndpoint(TUSB_DIR_OUT);
+    // Match the real WUP-028's endpoint addresses exactly: IN 0x81, OUT 0x02.
+    // Modern Dolphin scans the descriptor by direction, but some builds and
+    // tools hardcode these, and we are the sole interface in adapter mode so
+    // there is nothing to collide with. (allocEndpoint would hand out OUT 0x01.)
+    uint8_t const ep_in = 0x81;
+    uint8_t const ep_out = 0x02;
 
     uint8_t const desc[] = {
         // Interface: vendor-specific (0xFF), 2 endpoints.

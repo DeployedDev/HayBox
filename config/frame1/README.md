@@ -1,6 +1,9 @@
 # Frame1 Heavy (STM32F303VE)
 
-USB (DInput) port of HayBox for the Frame1 Heavy leverless controller.
+USB port of HayBox for the Frame1 Heavy leverless controller. At power-on it
+picks one of two USB identities: by default it emulates Nintendo's **GameCube
+Adapter for Wii U**, which is the mode to use for Melee; hold **Start** while
+plugging in for a plain DInput HID gamepad instead.
 
 ## Build & flash
 
@@ -22,11 +25,45 @@ above it at `0x08020000`. To flash:
 Recovery is always hold-**Up** at power-on, so a bad flash cannot brick the
 board.
 
-## Using with Dolphin (USB)
+## GameCube Adapter for Wii U mode (default - use this for Melee)
 
-The board enumerates as **`Adafruit FRAME1`**. Select it as the device, set it
-to **Standard Controller**, and map the buttons as normal. Two settings are not
-obvious:
+With nothing held at plug-in, the Frame1 enumerates as Nintendo's WUP-028
+adapter (`057e:0337`). In Dolphin set **Controllers -> Port 1 -> GameCube
+Adapter for Wii U**. Dolphin then reads the controller **natively**: exact
+0-255 GameCube values straight from the firmware (light/medium shield 49/94,
+full cardinal 208, modifier angles to the digit) with **no** input mapping,
+Range, inversion or Background Input needed. This is also what Slippi netplay
+expects.
+
+### Linux: udev rule (required)
+
+Dolphin opens the adapter directly through libusb, so your user needs
+permission to the device. Without this Dolphin reports **"No adapter detected"**
+even though the firmware is fine.
+
+```sh
+sudo tee /etc/udev/rules.d/51-gcadapter.rules >/dev/null <<'EOF'
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTRS{idVendor}=="057e", ATTRS{idProduct}=="0337", MODE="0666"
+EOF
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+Then re-plug the controller.
+
+### Checking it works
+
+1. `lsusb` lists a `057e:0337 Nintendo Co., Ltd` entry (if it still shows
+   `239a:cafe`, the board came up in DInput mode - re-plug without holding
+   anything).
+2. Dolphin -> Controllers -> Port 1 -> **GameCube Adapter for Wii U** ->
+   Configure shows **"Adapter detected"**.
+3. The controller moves in-game with no further setup.
+
+## Standard Controller (DInput) mode - hold Start at plug-in
+
+In this mode the board enumerates as **`Adafruit FRAME1`**. Select it as the
+device, set it to **Standard Controller**, and map the buttons as normal. Two
+settings are not obvious:
 
 ### Analog R trigger (light / medium shield)
 
