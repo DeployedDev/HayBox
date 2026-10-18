@@ -9,7 +9,8 @@
     },
     "mcu": "stm32f303vet6",
     "product_line": "STM32F303xE",
-    "variant": "STM32F3xx/F303V(D-E)(H-T)"
+    "variant": "STM32F3xx/F303V(D-E)(H-T)",
+    "variant_h": "variant_generic.h"
   },
   "debug": {
     "default_tools": ["stlink"],
