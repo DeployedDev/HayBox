@@ -9,6 +9,7 @@
 #include "reboot.hpp"
 #include "stdlib.hpp"
 
+#include <Adafruit_TinyUSB.h>
 #include <config.pb.h>
 
 Config config = default_config;
@@ -72,6 +73,13 @@ size_t backend_count;
 KeyboardMode *current_kb_mode = nullptr;
 
 void setup() {
+    // STM32duino is a "non-built-in" TinyUSB core: unlike the RP2040 core, it does
+    // not bring up the TinyUSB device stack before setup(), so we must. This runs
+    // our F303 TinyUSB_Port_InitDevice() (USB clock/pins/IRQ) and tusb_init(). It
+    // has to happen before the backends register their HID interface, because the
+    // device begin() clears the configuration descriptor.
+    TinyUSB_Device_Init(0);
+
     static InputState inputs;
 
     // Create GPIO input source and read it once so button-holds are available
@@ -94,9 +102,18 @@ void setup() {
         initialize_backends(backends, inputs, input_sources, input_source_count, config, pinout);
 
     setup_mode_activation_bindings(config.game_mode_configs, config.game_mode_configs_count);
+
+    // The backends have registered their USB (HID) interface now, so re-present to
+    // the host to force a clean enumeration of the full descriptor set.
+    TinyUSBDevice.detach();
+    delay(10);
+    TinyUSBDevice.attach();
 }
 
 void loop() {
+    // Non-built-in TinyUSB core: pump the device task every iteration.
+    TinyUSB_Device_Task();
+
     select_mode(backends, backend_count, config);
 
     for (size_t i = 0; i < backend_count; i++) {
