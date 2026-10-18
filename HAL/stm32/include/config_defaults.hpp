@@ -113,11 +113,10 @@ const Config default_config = {
     },
     // Stock HayBox plug-in selection (same order as HAL/pico so the 1-based
     // default index resolves to XInput): nothing held = XInput, hold Z =
-    // DInput, hold X = Nintendo Switch (defaulting to Ultimate, mode config 3).
-    // The Configurator (hold Start) is added when that backend lands.
-    // Console-only backends (GameCube/N64/NES/SNES) are omitted: this board
-    // has no console connector.
-    .communication_backend_configs_count = 3,
+    // DInput, hold X = Nintendo Switch (defaulting to Ultimate, mode config 3),
+    // hold Start = Configurator. Console-only backends (GameCube/N64/NES/SNES)
+    // are omitted: this board has no console connector.
+    .communication_backend_configs_count = 4,
     .communication_backend_configs = {
         CommunicationBackendConfig {
             .backend_id = COMMS_BACKEND_XINPUT,
@@ -134,6 +133,11 @@ const Config default_config = {
             .default_mode_config = 3,
             .activation_binding_count = 1,
             .activation_binding = { BTN_RF2 },
+        },
+        CommunicationBackendConfig {
+            .backend_id = COMMS_BACKEND_CONFIGURATOR,
+            .activation_binding_count = 1,
+            .activation_binding = { BTN_MB1 },
         },
     },
     .keyboard_modes_count = 1,

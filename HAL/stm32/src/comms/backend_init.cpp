@@ -1,6 +1,7 @@
 #include "comms/backend_init.hpp"
 
 #include "comms/B0XXInputViewer.hpp"
+#include "comms/ConfiguratorBackend.hpp"
 #include "comms/DInputBackend.hpp"
 #include "comms/NintendoSwitchBackend.hpp"
 #include "comms/XInputBackend.hpp"
@@ -9,6 +10,7 @@
 #include "core/pinout.hpp"
 #include "util/config_util.hpp"
 
+#include <Adafruit_TinyUSB.h> // Serial (TinyUSB CDC) for the Configurator
 #include <TUGamepad.hpp>
 #include <TUKeyboard.hpp>
 #include <config.pb.h>
@@ -20,9 +22,8 @@
  * applies to a USB-only board (no joybus/NES console backends). The plug-in
  * button holds and defaults come from config_defaults.hpp and match stock
  * HayBox: XInput by default, hold Z for DInput, hold X for Nintendo Switch,
- * hold Start for the Configurator. The Configurator lands in a following
- * commit; until it (stock's fallback) exists, unknown ids fall back to DInput
- * so the device always enumerates as something usable.
+ * hold Start for the Configurator. As on the pico, an unknown backend id
+ * falls back to the Configurator.
  *
  * The RP2040 version also consults the watchdog SCRATCH registers to carry a
  * temporarily-selected backend across a reboot; there is no equivalent here
@@ -128,7 +129,6 @@ void init_primary_backend(
     Config &config,
     const Pinout &pinout
 ) {
-    (void)config;
     (void)pinout;
     switch (backend_id) {
         case COMMS_BACKEND_XINPUT:
@@ -144,13 +144,19 @@ void init_primary_backend(
             }
             break;
         case COMMS_BACKEND_DINPUT:
-        default:
             if (primary_backend == nullptr) {
                 TUGamepad::registerDescriptor();
                 TUKeyboard::registerDescriptor();
                 primary_backend = new DInputBackend(inputs, input_sources, input_source_count);
             }
             break;
+        case COMMS_BACKEND_UNSPECIFIED: // Fall back to configurator if invalid backend selected.
+        case COMMS_BACKEND_CONFIGURATOR:
+        default:
+            delete primary_backend;
+            Serial.begin(115200);
+            primary_backend =
+                new ConfiguratorBackend(inputs, input_sources, input_source_count, config, Serial);
     }
 }
 

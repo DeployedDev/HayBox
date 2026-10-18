@@ -21,7 +21,7 @@
   "name": "Frame1 (STM32F303VE)",
   "upload": {
     "maximum_ram_size": 65536,
-    "maximum_size": 524288,
+    "maximum_size": 507904,
     "offset_address": "0x08020000",
     "protocol": "dfu",
     "protocols": ["blackmagic", "cmsis-dap", "dfu", "jlink", "serial", "stlink"]

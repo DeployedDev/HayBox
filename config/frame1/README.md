@@ -1,6 +1,31 @@
 # Frame1 Heavy (STM32F303VE)
 
-USB (DInput) port of HayBox for the Frame1 Heavy leverless controller.
+USB port of HayBox for the Frame1 Heavy leverless controller. It offers the
+stock HayBox USB backends with the stock plug-in button holds, so nothing
+needs relearning coming from any other HayBox board.
+
+## USB modes (hold while plugging in)
+
+| Hold at plug-in | Mode | Enumerates as |
+|---|---|---|
+| *nothing* | **XInput** (default) | `0738:4726` Xbox 360 Controller |
+| **Z** | DInput HID gamepad | `239a:cafe Adafruit FRAME1` |
+| **X** | Nintendo Switch | `0f0d:0092` HORI POKKEN CONTROLLER |
+| **Start** | Configurator (serial) | `239a:cafe` CDC serial port |
+
+**Up** is reserved: it enters the DFU bootloader (a hardware check that runs
+before the firmware). Game-mode profiles and their combos (Mod X + Start + L /
+Left / Down / Right / B / R, Mod Y + Start + L) are identical to stock HayBox.
+
+## Configurator and saved config
+
+Hold **Start** while plugging in to enter the Configurator, then connect with
+the HayBox web configurator over the serial port it presents. Saved settings
+are stored in a 16 KB region reserved at the top of flash
+(`0x0807C000`-`0x0807FFFF`), which is above anything `dfu-util` writes when
+flashing `firmware.bin`, so **your config survives firmware updates**. On first
+boot (or if the stored config fails its CRC check) the firmware writes the
+defaults there.
 
 ## Build & flash
 
@@ -22,11 +47,11 @@ above it at `0x08020000`. To flash:
 Recovery is always hold-**Up** at power-on, so a bad flash cannot brick the
 board.
 
-## Using with Dolphin (USB)
+## Using with Dolphin (DInput mode - hold Z at plug-in)
 
-The board enumerates as **`Adafruit FRAME1`**. Select it as the device, set it
-to **Standard Controller**, and map the buttons as normal. Two settings are not
-obvious:
+In DInput mode the board enumerates as **`Adafruit FRAME1`**. Select it as the
+device, set it to **Standard Controller**, and map the buttons as normal. Two
+settings are not obvious:
 
 ### Analog R trigger (light / medium shield)
 

@@ -2,6 +2,7 @@
 #include "config_defaults.hpp"
 #include "core/CommunicationBackend.hpp"
 #include "core/KeyboardMode.hpp"
+#include "core/Persistence.hpp"
 #include "core/mode_selection.hpp"
 #include "core/pinout.hpp"
 #include "core/state.hpp"
@@ -91,6 +92,11 @@ void setup() {
      * power-on (a hardware check at 0x08000000). There is no documented software
      * trigger, so there is no bootloader button-hold handled here - the user
      * holds Up while plugging in to reflash. */
+
+    // Attempt to load config, or write default config to flash if failed to load config.
+    if (!persistence.LoadConfig(config)) {
+        persistence.SaveConfig(config);
+    }
 
     // Single input source; the active backend scans it each SendReport().
     static InputSource *input_sources[] = {
