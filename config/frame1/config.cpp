@@ -1,6 +1,4 @@
 #include "comms/backend_init.hpp"
-#include "comms/GCAdapterBackend.hpp"
-#include "comms/GCAdapterUSB.hpp"
 #include "config_defaults.hpp"
 #include "core/CommunicationBackend.hpp"
 #include "core/KeyboardMode.hpp"
@@ -100,46 +98,13 @@ void setup() {
     };
     size_t input_source_count = sizeof(input_sources) / sizeof(InputSource *);
 
-    /*
-     * Boot-time USB identity select. VID/PID + interfaces are fixed at
-     * enumeration, so the mode is chosen once here from a button held at
-     * power-on:
-     *   - default (nothing held): emulate the GameCube Adapter for Wii U
-     *     (057e:0337) so Dolphin's "GameCube Adapter for Wii U" mode reads us
-     *     natively (exact GameCube values, no input mapping/range needed).
-     *   - hold Start: enumerate as the DInput HID gamepad instead.
-     * (Holding Up still enters the DFU bootloader - a hardware check that runs
-     * before any of this.)
-     */
-    if (inputs.mb1) {
-        backend_count = initialize_backends(
-            backends, inputs, input_sources, input_source_count, config, pinout
-        );
-    } else {
-        // Present ONLY the adapter's vendor interface: clearConfiguration drops
-        // the CDC Serial that would otherwise take interface 0 (the interface
-        // Dolphin claims).
-        TinyUSBDevice.clearConfiguration();
-        TinyUSBDevice.setID(0x057E, 0x0337);
-        TinyUSBDevice.setVersion(0x0200);
-
-        static GCAdapterUSB gc_usb;
-        gc_usb.begin();
-
-        static GCAdapterBackend gc_backend(inputs, input_sources, input_source_count, gc_usb);
-        static CommunicationBackend *backend_list[] = { &gc_backend };
-        backends = backend_list;
-        backend_count = 1;
-
-        // Default to Melee (game_mode_configs[0]), same as the DInput path.
-        set_mode(backends[0], config.game_mode_configs[0], config);
-    }
+    backend_count =
+        initialize_backends(backends, inputs, input_sources, input_source_count, config, pinout);
 
     setup_mode_activation_bindings(config.game_mode_configs, config.game_mode_configs_count);
 
-    // The active backend has registered its USB interface now (HID for DInput,
-    // the vendor interface for GC-adapter mode), so re-present to the host to
-    // force a clean enumeration of the full descriptor set.
+    // The backends have registered their USB (HID) interface now, so re-present to
+    // the host to force a clean enumeration of the full descriptor set.
     TinyUSBDevice.detach();
     delay(10);
     TinyUSBDevice.attach();
