@@ -69,18 +69,29 @@ above it at `0x08020000`. To flash:
 Recovery is always hold-**Up** at power-on, so a bad flash cannot brick the
 board.
 
-### Flashing a prebuilt `firmware.bin` on Windows
+### Flashing a prebuilt image (Windows, or without PlatformIO)
 
-The board uses standard STM32 DFU, so any DFU tool works. Pick **one** of
-these per PC - they install different drivers for the DFU device and conflict.
+Every build produces two images in `.pio/build/frame1/`:
 
-- **STM32CubeProgrammer** (ST's official GUI; easiest). Install it, hold
-  **Up** and plug in, choose connection type **USB** -> Refresh -> Connect.
-  In *Erasing & Programming*, browse to `firmware.bin`, set **Start address
-  `0x08020000`**, tick Verify, and Start Programming. Re-plug when done.
+- **`firmware.hex`** - Intel HEX. It **embeds the `0x08020000` load address**,
+  so GUI flashers place it correctly with nothing to type. Use this one.
+- **`firmware.bin`** - raw image for `dfu-util`, which needs the address given
+  explicitly (`-s 0x08020000`).
+
+The board uses standard STM32 DFU, so any DFU tool works. Options, easiest
+first (pick **one** DFU-driver-based tool per PC - they install different
+drivers for the DFU device and conflict):
+
+- **Frame1 firmware updater** (the vendor's tool). Hold **Up**, plug in, and
+  load `firmware.hex`. Confirm on one board first that it accepts a
+  third-party image; if it does, this is the simplest path for everyone.
+- **STM32CubeProgrammer** (ST's official GUI). Install it, hold **Up** and plug
+  in, connection type **USB** -> Refresh -> Connect. In *Erasing &
+  Programming*, browse to `firmware.hex` (the address is read from the file;
+  with `firmware.bin` you must set Start address `0x08020000`), tick Verify,
+  Start Programming. Re-plug when done.
 - **dfu-util**. With the board in DFU, run Zadig once and install **WinUSB**
-  on "STM32 BOOTLOADER", then flash with the same command as above:
-  `dfu-util -a 0 -s 0x08020000 -D firmware.bin`.
+  on "STM32 BOOTLOADER", then: `dfu-util -a 0 -s 0x08020000 -D firmware.bin`.
 
 On Windows a bare plug-in (XInput) is recognised as an Xbox 360 controller and
 works in Dolphin through its native XInput backend with no extra mapping.
