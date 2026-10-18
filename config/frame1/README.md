@@ -20,7 +20,29 @@ Left / Down / Right / B / R, Mod Y + Start + L) are identical to stock HayBox.
 ## Configurator and saved config
 
 Hold **Start** while plugging in to enter the Configurator, then connect with
-the HayBox web configurator over the serial port it presents. Saved settings
+the HayBox web configurator over the serial port it presents.
+
+**Linux: serial port permissions.** Your user must be able to open the port
+(`/dev/ttyACM0`), or the browser logs `Failed to open serial port:
+FILE_ERROR_ACCESS_DENIED` in `chrome://device-log` and the configurator fails
+to get device info. On Arch the device belongs to the `uucp` group (`dialout`
+on Debian/Ubuntu):
+
+```sh
+sudo usermod -aG uucp "$USER"   # then log out and back in
+```
+
+or, to avoid re-logging in, a udev rule for this device (takes effect on
+re-plug):
+
+```sh
+sudo tee /etc/udev/rules.d/51-haybox.rules >/dev/null <<'EOF'
+SUBSYSTEM=="tty", ATTRS{idVendor}=="239a", ATTRS{idProduct}=="cafe", MODE="0666"
+EOF
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+Saved settings
 are stored in a 16 KB region reserved at the top of flash
 (`0x0807C000`-`0x0807FFFF`), which is above anything `dfu-util` writes when
 flashing `firmware.bin`, so **your config survives firmware updates**. On first
