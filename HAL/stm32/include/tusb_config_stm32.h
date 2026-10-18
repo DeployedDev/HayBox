@@ -47,7 +47,7 @@ extern "C" {
 #define CFG_TUD_MSC 0
 #define CFG_TUD_HID 1
 #define CFG_TUD_MIDI 0
-#define CFG_TUD_VENDOR 0
+#define CFG_TUD_VENDOR 1
 
 // CDC FIFO size of TX and RX
 #define CFG_TUD_CDC_RX_BUFSIZE 256
@@ -55,6 +55,11 @@ extern "C" {
 
 // HID buffer size - sufficient to hold report ID (if any) + data
 #define CFG_TUD_HID_EP_BUFSIZE 64
+
+// Vendor (GameCube Adapter for Wii U emulation) FIFO sizes. The IN endpoint
+// streams 37-byte reports; the OUT endpoint takes short 0x13 / 0x11 commands.
+#define CFG_TUD_VENDOR_RX_BUFSIZE 64
+#define CFG_TUD_VENDOR_TX_BUFSIZE 64
 
 #ifdef __cplusplus
 }
