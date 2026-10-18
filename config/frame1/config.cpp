@@ -40,8 +40,8 @@ const GpioButtonMapping button_mappings[] = {
 
     { BTN_RF5, PB10 }, // R
     { BTN_RF6, PE14 }, // Y
-    { BTN_RF7, PE10 }, // LS (light shield)  — PE10/PE12 swapped vs the original scan
-    { BTN_RF8, PE12 }, // MS (medium shield) — (physical LS is on PE10, MS on PE12)
+    { BTN_RF7, PE12 }, // LS (light shield)
+    { BTN_RF8, PE10 }, // MS (medium shield)
 
     { BTN_RF1, PE15 }, // B
     { BTN_RF2, PE13 }, // X
