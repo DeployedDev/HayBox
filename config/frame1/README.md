@@ -2,7 +2,9 @@
 
 USB port of HayBox for the Frame1 Heavy leverless controller. It offers the
 stock HayBox USB backends with the stock plug-in button holds, so nothing
-needs relearning coming from any other HayBox board.
+needs relearning coming from any other HayBox board. The stock wired-console
+backends (GameCube/Wii, N64, NES, SNES) have also been ported — see **Console
+support** below (experimental: needs hardware wiring and on-device validation).
 
 ## USB modes (hold while plugging in)
 
@@ -16,6 +18,37 @@ needs relearning coming from any other HayBox board.
 **Up** is reserved: it enters the DFU bootloader (a hardware check that runs
 before the firmware). Game-mode profiles and their combos (Mod X + Start + L /
 Left / Down / Right / B / R, Mod Y + Start + L) are identical to stock HayBox.
+
+## Console support (wired) — EXPERIMENTAL, UNVALIDATED
+
+The Frame1 now carries the full stock HayBox console backend set, matching the
+pico build: **GameCube/Wii, N64, NES, and SNES**, alongside the USB modes above.
+They are **auto-detected** when the board is plugged into a console; NES and SNES
+can also be forced with a plug-in hold (**Mod X** = NES, **Mod Y** = SNES), as on
+stock HayBox.
+
+> **These console backends have not been tested on hardware.** The STM32F303 has
+> no PIO, so the Joybus (GameCube/N64) and shift-register (NES/SNES) protocols
+> are reimplemented from scratch as cycle-timed bit-bang transports. Treat them
+> as a starting point — the bit timing needs checking on a logic analyser, and
+> problems should be reported as GitHub issues.
+
+### Wiring (required — the stock board is USB-only)
+
+None of these lines are routed on the stock Frame1. To use a console backend you
+must wire the relevant pin(s) to an exposed GPIO, plus **ground** and controller
+**power** (from the console, or keep the board on USB power). The pin numbers are
+**placeholders** in `config/frame1/config.cpp` — change them to the pads you
+actually expose:
+
+| Console | Pin(s) in `config/frame1/config.cpp` | Placeholder |
+|---|---|---|
+| GameCube / N64 | `joybus_data` (single data wire) | `PA0` |
+| NES / SNES | `nes_data`, `nes_clock`, `nes_latch` | `PA1` / `PA2` / `PA3` |
+
+GameCube and N64 share the single Joybus data line; NES and SNES share the three
+shift-register lines. Only one console can be connected at a time, and detection
+picks the backend (USB when no console line is active).
 
 ## Configurator and saved config
 
