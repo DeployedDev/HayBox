@@ -10,6 +10,8 @@
 #include "reboot.hpp"
 #include "stdlib.hpp"
 
+#include "pinfinder.hpp"
+
 #include <Adafruit_TinyUSB.h>
 #include <config.pb.h>
 
@@ -85,6 +87,13 @@ void setup() {
     // has to happen before the backends register their HID interface, because the
     // device begin() clears the configuration descriptor.
     TinyUSB_Device_Init(0);
+
+#ifdef FRAME1_PINFINDER
+    // Diagnostic build (`pio run -e frame1_pinfinder`): scan the free GPIOs to
+    // find the GameCube Joybus data pin, stream results over USB serial, and
+    // never return. Normal operation resumes once the `frame1` build is flashed.
+    frame1_pinfinder();
+#endif
 
     static InputState inputs;
 
