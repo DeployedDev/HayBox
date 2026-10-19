@@ -58,16 +58,16 @@ const GpioButtonMapping button_mappings[] = {
 const size_t button_count = sizeof(button_mappings) / sizeof(GpioButtonMapping);
 
 /*
- * GameCube/N64 (Joybus) support: joybus_data must be wired to an exposed GPIO.
- * PA0 is a PLACEHOLDER - change it to whichever free pad is actually brought
- * out on the board. NES/SNES (nes_data/clock/latch) are added with those
- * backends. mux / nunchuk remain unused on this board.
+ * Console (wired-protocol) pins. ALL are PLACEHOLDERS - change them to the free
+ * pads actually exposed on the board, then wire each console's lines + ground +
+ * power. joybus_data (PA0) carries GameCube/N64 (single wire); nes_data/clock/
+ * latch (PA1/PA2/PA3) carry NES/SNES (shift register). mux / nunchuk unused.
  */
 const Pinout pinout = {
     .joybus_data = PA0,
-    .nes_data = -1,
-    .nes_clock = -1,
-    .nes_latch = -1,
+    .nes_data = PA1,
+    .nes_clock = PA2,
+    .nes_latch = PA3,
     .mux = -1,
     .nunchuk_detect = -1,
     .nunchuk_sda = -1,
