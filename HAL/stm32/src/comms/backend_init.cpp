@@ -3,6 +3,7 @@
 #include "comms/B0XXInputViewer.hpp"
 #include "comms/ConfiguratorBackend.hpp"
 #include "comms/DInputBackend.hpp"
+#include "comms/GamecubeBackend.hpp"
 #include "comms/NintendoSwitchBackend.hpp"
 #include "comms/PumpedSerial.hpp"
 #include "comms/XInputBackend.hpp"
@@ -150,6 +151,11 @@ void init_primary_backend(
                 TUKeyboard::registerDescriptor();
                 primary_backend = new DInputBackend(inputs, input_sources, input_source_count);
             }
+            break;
+        case COMMS_BACKEND_GAMECUBE:
+            delete primary_backend;
+            primary_backend =
+                new GamecubeBackend(inputs, input_sources, input_source_count, pinout.joybus_data);
             break;
         case COMMS_BACKEND_UNSPECIFIED: // Fall back to configurator if invalid backend selected.
         case COMMS_BACKEND_CONFIGURATOR:
