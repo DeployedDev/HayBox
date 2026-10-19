@@ -4,6 +4,7 @@
 #include "comms/ConfiguratorBackend.hpp"
 #include "comms/DInputBackend.hpp"
 #include "comms/GamecubeBackend.hpp"
+#include "comms/N64Backend.hpp"
 #include "comms/NintendoSwitchBackend.hpp"
 #include "comms/PumpedSerial.hpp"
 #include "comms/XInputBackend.hpp"
@@ -156,6 +157,11 @@ void init_primary_backend(
             delete primary_backend;
             primary_backend =
                 new GamecubeBackend(inputs, input_sources, input_source_count, pinout.joybus_data);
+            break;
+        case COMMS_BACKEND_N64:
+            delete primary_backend;
+            primary_backend =
+                new N64Backend(inputs, input_sources, input_source_count, pinout.joybus_data);
             break;
         case COMMS_BACKEND_UNSPECIFIED: // Fall back to configurator if invalid backend selected.
         case COMMS_BACKEND_CONFIGURATOR:
