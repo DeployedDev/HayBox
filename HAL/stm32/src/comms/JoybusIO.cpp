@@ -14,13 +14,13 @@
 #define JB_HIGH()  digitalWriteFast(_pn, HIGH)
 #define JB_READ()  (digitalReadFast(_pn) == HIGH)
 
-static inline void dwt_init() {
+static inline void jb_dwt_init() {
     CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
     DWT->CYCCNT = 0;
     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
 }
-static inline uint32_t dwt_now() { return DWT->CYCCNT; }
-static inline void dwt_wait(uint32_t cycles) {
+static inline uint32_t jb_dwt_now() { return DWT->CYCCNT; }
+static inline void jb_dwt_wait(uint32_t cycles) {
     uint32_t start = DWT->CYCCNT;
     while ((DWT->CYCCNT - start) < cycles) { /* spin */ }
 }
@@ -32,7 +32,7 @@ void JoybusIO::Init() {
     pinMode(_pin, OUTPUT_OPEN_DRAIN);
     JB_HIGH();  // release line
 
-    dwt_init();
+    jb_dwt_init();
     uint32_t per_us = SystemCoreClock / 1000000UL;  // 72 on the Frame1
     _c1 = per_us;
     _c2 = 2UL * per_us;
@@ -47,18 +47,18 @@ void JoybusIO::SendBytes(const uint8_t *data, uint8_t len) {
         for (int bit = 7; bit >= 0; bit--) {
             bool one = (b >> bit) & 1;
             JB_LOW();
-            dwt_wait(one ? _c1 : _c3);
+            jb_dwt_wait(one ? _c1 : _c3);
             JB_HIGH();
-            dwt_wait(one ? _c3 : _c1);
+            jb_dwt_wait(one ? _c3 : _c1);
         }
     }
 }
 
 void JoybusIO::SendStopBit() {
     JB_LOW();
-    dwt_wait(_c1);
+    jb_dwt_wait(_c1);
     JB_HIGH();
-    dwt_wait(_c1);
+    jb_dwt_wait(_c1);
 }
 
 bool JoybusIO::ReadBytes(uint8_t *data, uint8_t len) {
@@ -66,15 +66,15 @@ bool JoybusIO::ReadBytes(uint8_t *data, uint8_t len) {
     for (uint8_t i = 0; i < len; i++) {
         uint8_t b = 0;
         for (int bit = 0; bit < 8; bit++) {
-            uint32_t t0 = dwt_now();
+            uint32_t t0 = jb_dwt_now();
             while (JB_READ()) {  // wait for falling edge
-                if ((dwt_now() - t0) > edge_timeout) return false;
+                if ((jb_dwt_now() - t0) > edge_timeout) return false;
             }
-            dwt_wait(_c2);  // sample ~2 us in
+            jb_dwt_wait(_c2);  // sample ~2 us in
             b = (b << 1) | (JB_READ() ? 1 : 0);
-            t0 = dwt_now();
+            t0 = jb_dwt_now();
             while (!JB_READ()) {  // wait for line to return high
-                if ((dwt_now() - t0) > edge_timeout) break;
+                if ((jb_dwt_now() - t0) > edge_timeout) break;
             }
         }
         data[i] = b;
@@ -85,8 +85,8 @@ bool JoybusIO::ReadBytes(uint8_t *data, uint8_t len) {
 bool JoybusIO::SniffFor(uint8_t wanted, uint32_t budget_ms) {
     uint32_t per_ms = SystemCoreClock / 1000UL;
     uint32_t budget = per_ms * budget_ms;
-    uint32_t t0 = dwt_now();
-    while ((dwt_now() - t0) < budget) {
+    uint32_t t0 = jb_dwt_now();
+    while ((jb_dwt_now() - t0) < budget) {
         if (JB_READ()) continue;  // idle high; keep watching
         noInterrupts();
         uint8_t op = 0;
@@ -94,8 +94,8 @@ bool JoybusIO::SniffFor(uint8_t wanted, uint32_t budget_ms) {
         interrupts();
         if (ok && op == wanted) return true;
         // Let the rest of this command drain so we re-sync on the next one.
-        uint32_t g = dwt_now();
-        while (!JB_READ() && (dwt_now() - g) < (_c3 * 8)) { /* drain */ }
+        uint32_t g = jb_dwt_now();
+        while (!JB_READ() && (jb_dwt_now() - g) < (_c3 * 8)) { /* drain */ }
     }
     return false;
 }
