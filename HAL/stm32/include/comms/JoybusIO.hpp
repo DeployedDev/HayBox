@@ -39,6 +39,12 @@ class JoybusIO {
     // return true if seen. Masks IRQs only for each short command read.
     bool SniffFor(uint8_t wanted, uint32_t budget_ms);
 
+    // Auto-detect helper for the data-pin scan: configure the pin as a
+    // pulled-up input (an unconnected pin then reads a stable HIGH) and watch
+    // for a Joybus poll. Returns the poll opcode seen - 0x40 (GameCube) or 0x01
+    // (N64) - or -1 if none within budget_ms. Never drives the line.
+    int DetectPoll(uint32_t budget_ms);
+
   private:
     uint8_t _pin;
     PinName _pn;

@@ -20,6 +20,10 @@
 #include <TUKeyboard.hpp>
 #include <config.pb.h>
 
+// Joybus data pin discovered by the console auto-scan (see console_detection.cpp):
+// 0xFF until detection runs, then the GPIO a GameCube/N64 host was polling.
+extern uint8_t g_discovered_joybus_pin;
+
 /*
  * STM32 (Frame1) backend initialization.
  *
@@ -157,13 +161,17 @@ void init_primary_backend(
             break;
         case COMMS_BACKEND_GAMECUBE:
             delete primary_backend;
-            primary_backend =
-                new GamecubeBackend(inputs, input_sources, input_source_count, pinout.joybus_data);
+            primary_backend = new GamecubeBackend(
+                inputs, input_sources, input_source_count,
+                g_discovered_joybus_pin != 0xFF ? g_discovered_joybus_pin : pinout.joybus_data
+            );
             break;
         case COMMS_BACKEND_N64:
             delete primary_backend;
-            primary_backend =
-                new N64Backend(inputs, input_sources, input_source_count, pinout.joybus_data);
+            primary_backend = new N64Backend(
+                inputs, input_sources, input_source_count,
+                g_discovered_joybus_pin != 0xFF ? g_discovered_joybus_pin : pinout.joybus_data
+            );
             break;
         case COMMS_BACKEND_NES:
             delete primary_backend;
