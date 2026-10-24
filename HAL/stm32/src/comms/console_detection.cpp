@@ -1,6 +1,7 @@
 #include "comms/console_detection.hpp"
 
-#include "comms/JoybusIO.hpp"
+#include "comms/GamecubeConsole.hpp"
+#include "comms/N64Console.hpp"
 #include "core/pinout.hpp"
 
 #include <Arduino.h>
@@ -11,23 +12,26 @@
  *
  * NES/SNES: counted on the nes_* lines by latch/clock pulse ratio (as on the
  * pico). GameCube/N64 (Joybus): the data line is carried on one of the board's
- * USB-C pins to an STM32 GPIO whose identity isn't documented, so instead of
- * assuming a pin we SCAN the free GPIOs for one that a console/adapter is
- * actively polling, and bind the backend to it. The poll opcode distinguishes
- * GameCube (0x40) from N64 (0x01). The discovered pin is published via
- * g_discovered_joybus_pin for backend construction. Returns UNSPECIFIED (->
- * default USB backend) when nothing is polling.
+ * USB-C pins to an STM32 GPIO whose identity isn't documented, so we probe the
+ * free GPIOs. The probe is ACTIVE: on each candidate pin we briefly behave as a
+ * controller and answer the identify command, because real consoles (and the
+ * Raphnet adapter) only start polling AFTER a valid identify reply - a passive
+ * listen would deadlock, since nothing polls until we answer. A pin is the data
+ * line once the host responds by actually polling us: 0x01 -> N64, 0x40 ->
+ * GameCube. The discovered pin is published via g_discovered_joybus_pin for
+ * backend construction. Returns UNSPECIFIED (-> default USB backend) when no
+ * pin is driven.
  *
- * NOTE: in the default path (nothing held, not on a console) the scan adds up
- * to (candidates * JOYBUS_SCAN_MS) ms to boot. Once the data pin is known it
- * can be hard-set in pinout.joybus_data to skip the scan entirely.
+ * NOTE: idle candidate pins bail in a few ms, so a no-console boot adds only
+ * ~(candidates * idle_giveup) ms. Once the data pin is known it can be hard-set
+ * in pinout.joybus_data to skip the probe entirely (pico parity).
  */
 
 // Published to backend_init so the GameCube/N64 backend is built on the pin the
 // scan found. 0xFF = not discovered (fall back to pinout.joybus_data).
 uint8_t g_discovered_joybus_pin = 0xFF;
 
-#define JOYBUS_SCAN_MS 30
+#define JOYBUS_PROBE_MS 60  // max active-probe window per candidate pin
 
 // Free GPIOs - everything NOT used by the button matrix, USB (PA11/PA12), SWD
 // (PA13/PA14), or the HSE crystal. The Joybus data line is one of these.
@@ -67,18 +71,23 @@ CommunicationBackendId detect_console(const Pinout &pinout) {
         }
     }
 
-    // GameCube / N64: scan the free GPIOs for a pin a host is actively polling.
+    // GameCube / N64: actively probe each free GPIO. N64 first; if a pin shows
+    // Joybus traffic that isn't N64, try GameCube on that same pin.
     for (size_t i = 0; i < kJoybusCandidateCount; i++) {
-        JoybusIO io(kJoybusCandidates[i]);
-        int op = io.DetectPoll(JOYBUS_SCAN_MS);
-        if (op == 0x40) {
-            g_discovered_joybus_pin = kJoybusCandidates[i];
-            return COMMS_BACKEND_GAMECUBE;
-        }
-        if (op == 0x01) {
-            g_discovered_joybus_pin = kJoybusCandidates[i];
+        uint8_t pin = kJoybusCandidates[i];
+
+        int r = N64Console(pin).DetectActive(JOYBUS_PROBE_MS);
+        if (r == 1) {
+            g_discovered_joybus_pin = pin;
             return COMMS_BACKEND_N64;
         }
+        if (r == 0) {  // live Joybus pin, but not N64 -> is it GameCube?
+            if (GamecubeConsole(pin).DetectActive(JOYBUS_PROBE_MS) == 1) {
+                g_discovered_joybus_pin = pin;
+                return COMMS_BACKEND_GAMECUBE;
+            }
+        }
+        // r == -1: idle pin, next (fast).
     }
 
     return COMMS_BACKEND_UNSPECIFIED;

@@ -100,23 +100,13 @@ bool JoybusIO::SniffFor(uint8_t wanted, uint32_t budget_ms) {
     return false;
 }
 
-int JoybusIO::DetectPoll(uint32_t budget_ms) {
+void JoybusIO::BeginListen() {
     Init();                       // resolve _pn, timing constants, enable DWT
-    pinMode(_pin, INPUT_PULLUP);  // pulled-up input: unconnected pin reads HIGH,
-                                  // a polling host pulls it LOW. We never drive.
-    uint32_t per_ms = SystemCoreClock / 1000UL;
-    uint32_t budget = per_ms * budget_ms;
-    uint32_t t0 = jb_dwt_now();
-    while ((jb_dwt_now() - t0) < budget) {
-        if (JB_READ()) continue;  // idle high; spin-watch this one pin
-        noInterrupts();
-        uint8_t op = 0;
-        bool ok = ReadBytes(&op, 1);
-        interrupts();
-        if (ok && (op == 0x40 || op == 0x01)) return (int)op;
-        // Drain the rest of this command so we re-sync on the next falling edge.
-        uint32_t g = jb_dwt_now();
-        while (!JB_READ() && (jb_dwt_now() - g) < (_c3 * 8)) { /* drain */ }
-    }
-    return -1;
+    pinMode(_pin, INPUT_PULLUP);  // listen only: idle/unconnected pins read HIGH,
+                                  // a host pulls LOW. We don't drive until asked.
+}
+
+void JoybusIO::EnableDrive() {
+    pinMode(_pin, OUTPUT_OPEN_DRAIN);  // now we can pull the line low to respond
+    JB_HIGH();                         // released (idle high) to start
 }

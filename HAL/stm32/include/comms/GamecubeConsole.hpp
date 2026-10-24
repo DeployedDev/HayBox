@@ -30,6 +30,13 @@ class GamecubeConsole {
 
     void Init();
     bool Detect();  // true if a GameCube poll (0x40) is seen on the line
+
+    // Active detection for the data-pin scan; mirror of N64Console::DetectActive.
+    // Answers identify (0x00/0xFF) and origin (0x41/0x42); returns 1 when a real
+    // poll (0x40) arrives (this IS the data pin), 0 on non-GameCube Joybus
+    // traffic, -1 if the pin was idle. Runs at most budget_ms.
+    int DetectActive(uint32_t budget_ms);
+
     GcPollStatus WaitForPoll();
     void SendReport(const gc_report_t *report);
 
