@@ -1,0 +1,31 @@
+{
+  "build": {
+    "arduino": {
+      "variant_h": "variant_generic.h"
+    },
+    "core": "stm32",
+    "cpu": "cortex-m4",
+    "extra_flags": "-DSTM32F3xx -DSTM32F303xE -DARDUINO_GENERIC_F303VETX",
+    "f_cpu": "72000000L",
+    "mcu": "stm32f303vet6",
+    "product_line": "STM32F303xE",
+    "variant": "STM32F3xx/F303V(D-E)(H-T)"
+  },
+  "debug": {
+    "default_tools": ["stlink"],
+    "jlink_device": "STM32F303VE",
+    "openocd_target": "stm32f3x",
+    "svd_path": "STM32F303.svd"
+  },
+  "frameworks": ["arduino", "cmsis", "stm32cube"],
+  "name": "Frame1 (STM32F303VE)",
+  "upload": {
+    "maximum_ram_size": 65536,
+    "maximum_size": 507904,
+    "offset_address": "0x08020000",
+    "protocol": "dfu",
+    "protocols": ["blackmagic", "cmsis-dap", "dfu", "jlink", "serial", "stlink"]
+  },
+  "url": "https://b0xx.com",
+  "vendor": "Frame1"
+}
