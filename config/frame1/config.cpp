@@ -62,15 +62,15 @@ const size_t button_count = sizeof(button_mappings) / sizeof(GpioButtonMapping);
 /*
  * Console (wired-protocol) pins. joybus_data = PD3 is the GameCube/N64 single-
  * wire data line, found and validated on hardware with the pin brute-forcer (it
- * is carried on one of the USB-C pads via a Retro-C style cable). nes_data/clock/
- * latch (NES/SNES shift register) are still PLACEHOLDERS - set them once those
- * lines are identified the same way. mux / nunchuk unused.
+ * is carried on one of the USB-C pads via a Retro-C style cable). NES/SNES is
+ * disabled (-1), as in the reference pico config: the backends are built, but
+ * no NES/SNES lines are wired. mux / nunchuk unused.
  */
 const Pinout pinout = {
     .joybus_data = PD3,
-    .nes_data = PA1,
-    .nes_clock = PA2,
-    .nes_latch = PA3,
+    .nes_data = -1,
+    .nes_clock = -1,
+    .nes_latch = -1,
     .mux = -1,
     .nunchuk_detect = -1,
     .nunchuk_sda = -1,
