@@ -42,16 +42,39 @@ void JoybusIO::Init() {
 bool JoybusIO::ReadLine() { return JB_READ(); }
 
 void JoybusIO::SendBytes(const uint8_t *data, uint8_t len) {
+    // Turnaround: when we're called the console is still finishing its command
+    // (the stop bit). Wait that out - its falling edge, then the line releasing
+    // high - plus a short gap, so our reply doesn't collide with it. Without
+    // this the reply starts during the stop bit and the host can't decode it
+    // (the "traffic seen, handshake never completes" case).
+    const uint32_t edge_timeout = _c3 * 4;  // ~12 us
+    uint32_t t0 = jb_dwt_now();
+    while (JB_READ()) {  // stop-bit falling edge
+        if ((jb_dwt_now() - t0) > edge_timeout) break;
+    }
+    t0 = jb_dwt_now();
+    while (!JB_READ()) {  // stop bit released (line high)
+        if ((jb_dwt_now() - t0) > edge_timeout) break;
+    }
+    jb_dwt_wait(_c2);  // ~2 us turnaround before driving the reply
+
+    // Send bits MSB-first on ABSOLUTE per-cell deadlines, so GPIO/loop overhead
+    // can't accumulate and drift the 4 us bit cells out of the host's sampling
+    // tolerance over a multi-byte reply.
+    const uint32_t cell = _c1 + _c3;  // 4 us
+    uint32_t next = jb_dwt_now();
     for (uint8_t i = 0; i < len; i++) {
         uint8_t b = data[i];
         for (int bit = 7; bit >= 0; bit--) {
-            bool one = (b >> bit) & 1;
+            uint32_t low_dur = ((b >> bit) & 1) ? _c1 : _c3;
+            while ((int32_t)(jb_dwt_now() - next) < 0) { }             // cell start -> low
             JB_LOW();
-            jb_dwt_wait(one ? _c1 : _c3);
+            while ((int32_t)(jb_dwt_now() - (next + low_dur)) < 0) { } // -> release high
             JB_HIGH();
-            jb_dwt_wait(one ? _c3 : _c1);
+            next += cell;
         }
     }
+    while ((int32_t)(jb_dwt_now() - next) < 0) { }  // finish the last cell's high phase
 }
 
 void JoybusIO::SendStopBit() {
