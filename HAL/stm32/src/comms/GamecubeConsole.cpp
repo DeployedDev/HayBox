@@ -27,13 +27,17 @@ int GamecubeConsole::DetectActive(uint32_t budget_ms) {
 
     while ((millis() - start) < budget_ms) {
         if (!saw_traffic && (millis() - start) >= idle_giveup_ms) break;
-        if (_io.ReadLine()) continue;  // idle high; keep watching
 
+        // Listen with IRQs masked so the command's first edge is caught on time
+        // (see WaitForPoll); each pass is bounded to ~0.5 ms by ListenChunk().
         noInterrupts();
         uint8_t cmd = 0;
-        if (!_io.ReadBytes(&cmd, 1)) {
+        int r = _io.ReadBytesEx(&cmd, 1, _io.ListenChunk());
+        if (r <= 0) {
+            if (r < 0) _io.WaitLineIdle();  // framing error mid-command: resync
             interrupts();
-            continue;  // framing glitch; resync
+            __ISB();  // brief IRQ window (SysTick / millis)
+            continue;
         }
         saw_traffic = true;
         if (!driving) {
@@ -60,7 +64,8 @@ int GamecubeConsole::DetectActive(uint32_t budget_ms) {
                 interrupts();
                 return 1;
             }
-            default:
+            default:  // unknown command: let it finish so its data isn't read as a new one
+                _io.WaitLineIdle();
                 interrupts();
                 break;
         }
@@ -70,16 +75,19 @@ int GamecubeConsole::DetectActive(uint32_t budget_ms) {
 
 GcPollStatus GamecubeConsole::WaitForPoll() {
     for (;;) {
-        // Idle wait with interrupts ENABLED so USB keeps running between polls.
-        while (_io.ReadLine()) { /* idle */ }
-
-        // Command burst: mask interrupts for jitter-free bit timing.
+        // Listen with IRQs MASKED, so a command's first falling edge is caught with
+        // no interrupt latency and every bit is sampled 2 us after its real edge -
+        // the closest software equivalent of the pico's always-listening PIO.
+        // After ~0.5 ms with no command (ListenChunk), open a brief IRQ window so
+        // SysTick/USB keep running, then resume listening.
         noInterrupts();
-
         uint8_t cmd = 0;
-        if (!_io.ReadBytes(&cmd, 1)) {
+        int r = _io.ReadBytesEx(&cmd, 1, _io.ListenChunk());
+        if (r <= 0) {
+            if (r < 0) _io.WaitLineIdle();  // framing error mid-command: resync
             interrupts();
-            continue;  // framing glitch; resync
+            __ISB();
+            continue;
         }
 
         switch (cmd) {
@@ -98,13 +106,15 @@ GcPollStatus GamecubeConsole::WaitForPoll() {
             case 0x40: {  // poll / status
                 uint8_t args[2];  // mode + rumble
                 if (!_io.ReadBytes(args, 2)) {
+                    _io.WaitLineIdle();  // framing error: resync
                     interrupts();
                     break;
                 }
                 // IRQs stay MASKED: caller must SendReport() immediately.
                 return GcPollStatus::OK;
             }
-            default:
+            default:  // unknown command: let it finish so its data isn't read as a new one
+                _io.WaitLineIdle();
                 interrupts();
                 break;
         }

@@ -6,12 +6,12 @@
 // joybus-pio's default_n64_status, i.e. what the pico sends.
 //
 // Controller Pak commands (0x02 read / 0x03 write): the pico does NOT answer them
-// (they fall through unhandled), which is correct on a real console - a console
-// never sends pak commands to a controller reporting "no pak". The Raphnet
-// N64-to-USB adapter, however, issues pak commands in its normal update cycle
-// and drops the controller entirely if they go unanswered. So we answer them
-// minimally - a valid "empty pak" read (32 zero bytes + correct CRC 0x00) and a
-// write ack - which satisfies the adapter and is inert on a real console.
+// (they fall through unhandled). We currently answer them minimally - a valid
+// "empty pak" read (32 zero bytes + CRC 0x00) and a write ack. This was restored
+// after a test in which dropping them appeared to break the Raphnet adapter, but
+// that test was confounded (the adapter was stuck in raw mode at the time), so
+// whether the adapter needs these replies is UNVERIFIED. Re-test the
+// pico-faithful behaviour (no reply) once the transport is solid.
 static const uint8_t N64_ID[3] = { 0x05, 0x00, 0x02 };
 
 N64Console::N64Console(uint8_t data_pin) : _io(data_pin) {}
@@ -30,13 +30,17 @@ int N64Console::DetectActive(uint32_t budget_ms) {
 
     while ((millis() - start) < budget_ms) {
         if (!saw_traffic && (millis() - start) >= idle_giveup_ms) break;
-        if (_io.ReadLine()) continue;  // idle high; keep watching
 
+        // Listen with IRQs masked so the command's first edge is caught on time
+        // (see WaitForPoll); each pass is bounded to ~0.5 ms by ListenChunk().
         noInterrupts();
         uint8_t cmd = 0;
-        if (!_io.ReadBytes(&cmd, 1)) {
+        int r = _io.ReadBytesEx(&cmd, 1, _io.ListenChunk());
+        if (r <= 0) {
+            if (r < 0) _io.WaitLineIdle();  // framing error mid-command: resync
             interrupts();
-            continue;  // framing glitch; resync
+            __ISB();  // brief IRQ window (SysTick / millis)
+            continue;
         }
         saw_traffic = true;
         if (!driving) {
@@ -76,7 +80,8 @@ int N64Console::DetectActive(uint32_t budget_ms) {
                 interrupts();
                 break;
             }
-            default:
+            default:  // unknown command: let it finish so its data isn't read as a new one
+                _io.WaitLineIdle();
                 interrupts();
                 break;
         }
@@ -86,13 +91,18 @@ int N64Console::DetectActive(uint32_t budget_ms) {
 
 N64PollStatus N64Console::WaitForPoll() {
     for (;;) {
-        while (_io.ReadLine()) { /* idle, IRQs on */ }
-
+        // Listen with IRQs MASKED, so a command's first falling edge is caught with
+        // no interrupt latency and every bit is sampled 2 us after its real edge -
+        // the closest software equivalent of the pico's always-listening PIO.
+        // After ~0.5 ms with no command (ListenChunk), open a brief IRQ window so
+        // SysTick/USB keep running, then resume listening.
         noInterrupts();
-
         uint8_t cmd = 0;
-        if (!_io.ReadBytes(&cmd, 1)) {
+        int r = _io.ReadBytesEx(&cmd, 1, _io.ListenChunk());
+        if (r <= 0) {
+            if (r < 0) _io.WaitLineIdle();  // framing error mid-command: resync
             interrupts();
+            __ISB();
             continue;
         }
 
@@ -125,7 +135,8 @@ N64PollStatus N64Console::WaitForPoll() {
                 interrupts();
                 break;
             }
-            default:
+            default:  // unknown command: let it finish so its data isn't read as a new one
+                _io.WaitLineIdle();
                 interrupts();
                 break;
         }

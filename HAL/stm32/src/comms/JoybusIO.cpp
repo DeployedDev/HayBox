@@ -25,7 +25,8 @@ static inline void jb_dwt_wait(uint32_t cycles) {
     while ((DWT->CYCCNT - start) < cycles) { /* spin */ }
 }
 
-JoybusIO::JoybusIO(uint8_t data_pin) : _pin(data_pin), _pn(NC), _c1(0), _c2(0), _c3(0) {}
+JoybusIO::JoybusIO(uint8_t data_pin)
+    : _pin(data_pin), _pn(NC), _c1(0), _c2(0), _c3(0), _chunk(0) {}
 
 void JoybusIO::Init() {
     _pn = digitalPinToPinName(_pin);
@@ -37,6 +38,7 @@ void JoybusIO::Init() {
     _c1 = per_us;
     _c2 = 2UL * per_us;
     _c3 = 3UL * per_us;
+    _chunk = SystemCoreClock / 2000UL;  // ~0.5 ms: < 1 SysTick period, so no lost ticks
 }
 
 bool JoybusIO::ReadLine() { return JB_READ(); }
@@ -84,25 +86,53 @@ void JoybusIO::SendStopBit() {
     jb_dwt_wait(_c1);
 }
 
-bool JoybusIO::ReadBytes(uint8_t *data, uint8_t len) {
-    const uint32_t edge_timeout = _c3 * 4;  // ~12 us idle => end-of-command/error
+int JoybusIO::ReadBytesEx(uint8_t *data, uint8_t len, uint32_t first_edge_timeout) {
+    const uint32_t edge_timeout = _c3 * 4;  // ~12 us between bits => end-of-command/error
     for (uint8_t i = 0; i < len; i++) {
         uint8_t b = 0;
         for (int bit = 0; bit < 8; bit++) {
+            const bool first = (i == 0 && bit == 0);
+            const uint32_t limit = first ? first_edge_timeout : edge_timeout;
+            // Tight spin for the falling edge (one GPIO read + one counter read
+            // per pass), so the edge is seen within a few cycles of happening.
             uint32_t t0 = jb_dwt_now();
-            while (JB_READ()) {  // wait for falling edge
-                if ((jb_dwt_now() - t0) > edge_timeout) return false;
+            while (JB_READ()) {
+                if ((jb_dwt_now() - t0) > limit) return first ? 0 : -1;
             }
-            jb_dwt_wait(_c2);  // sample ~2 us in
+            // Sample 2 us after the edge we just saw - the middle of the data
+            // window, as the pico's PIO does.
+            const uint32_t edge = jb_dwt_now();
+            while ((jb_dwt_now() - edge) < _c2) { }
             b = (b << 1) | (JB_READ() ? 1 : 0);
             t0 = jb_dwt_now();
-            while (!JB_READ()) {  // wait for line to return high
-                if ((jb_dwt_now() - t0) > edge_timeout) break;
+            while (!JB_READ()) {  // wait for the line to return high
+                if ((jb_dwt_now() - t0) > edge_timeout) return -1;  // stuck low
             }
         }
         data[i] = b;
     }
-    return true;
+    return 1;
+}
+
+bool JoybusIO::ReadBytes(uint8_t *data, uint8_t len) {
+    return ReadBytesEx(data, len, _c3 * 4) == 1;
+}
+
+void JoybusIO::WaitLineIdle() {
+    // Longest high phase inside a command is ~3 us (a '1' bit); anything longer
+    // means the command (and its stop bit) has finished. Capped so a stuck line
+    // can never hang us.
+    const uint32_t quiet = _c1 * 5;    // ~5 us of continuous high
+    const uint32_t limit = _c3 * 100;  // ~300 us cap
+    const uint32_t t0 = jb_dwt_now();
+    uint32_t last_low = t0;
+    while ((jb_dwt_now() - t0) < limit) {
+        if (!JB_READ()) {
+            last_low = jb_dwt_now();
+        } else if ((jb_dwt_now() - last_low) >= quiet) {
+            return;
+        }
+    }
 }
 
 bool JoybusIO::SniffFor(uint8_t wanted, uint32_t budget_ms) {

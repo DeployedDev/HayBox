@@ -13,9 +13,11 @@
  * +3us high; RX sampled ~2us after the falling edge).
  *
  * Interrupt policy: this transport never touches the interrupt mask. The caller
- * (the console classes) masks IRQs around a command/response burst so the bit
- * timing is jitter-free, and keeps them masked between a WaitForPoll()==OK and
- * the matching SendReport().
+ * (the console classes) LISTENS with IRQs masked - so a command's first edge is
+ * caught with no interrupt latency, like the pico's always-listening PIO - and
+ * opens a brief IRQ window every ListenChunk() (~0.5 ms) of silence so SysTick
+ * and USB keep running. IRQs stay masked through the command/response burst and
+ * between a WaitForPoll()==OK and the matching SendReport().
  *
  * The us->cycle constants and the fast-GPIO path are the first things to check
  * on a logic analyser on real hardware.
@@ -31,6 +33,16 @@ class JoybusIO {
     void SendBytes(const uint8_t *data, uint8_t len);
     // Read `len` bytes MSB-first; false on inter-edge timeout. Caller masks IRQs.
     bool ReadBytes(uint8_t *data, uint8_t len);
+    // Like ReadBytes, but waits up to `first_edge_timeout` cycles for the FIRST
+    // falling edge, so it can be called on an idle line and catch the command's
+    // start itself. Returns 1 = read OK, 0 = no command arrived (line idle),
+    // -1 = framing error part-way through (call WaitLineIdle() to resync).
+    int ReadBytesEx(uint8_t *data, uint8_t len, uint32_t first_edge_timeout);
+    // Wait until the line has been high longer than any high phase inside a
+    // command (i.e. the current command has finished). Bounded; used to resync.
+    void WaitLineIdle();
+    // Cycles to listen with IRQs masked before opening a brief IRQ window.
+    uint32_t ListenChunk() const { return _chunk; }
     // ~1 us low + release, closing a response.
     void SendStopBit();
 
@@ -51,6 +63,7 @@ class JoybusIO {
     uint8_t _pin;
     PinName _pn;
     uint32_t _c1, _c2, _c3;  // 1/2/3 us in CPU cycles (set in Init)
+    uint32_t _chunk;         // ~0.5 ms in CPU cycles (set in Init)
 };
 
 #endif
