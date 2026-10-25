@@ -1,10 +1,21 @@
-# Frame1 Heavy (STM32F303VE)
+# Frame1 Heavy and Light (STM32F303VE)
 
-USB port of HayBox for the Frame1 Heavy leverless controller. It offers the
-stock HayBox USB backends with the stock plug-in button holds, so nothing
-needs relearning coming from any other HayBox board. The stock wired-console
-backends (GameCube/Wii, N64, NES, SNES) have also been ported — see **Console
-support** below (experimental: needs hardware wiring and on-device validation).
+HayBox port for the Frame1 leverless controller. One firmware build runs on both
+the Heavy and the Light, as with Frame1's own firmware. It aims for parity with
+the reference pico (RP2040) build: the same USB backends and plug-in button
+holds, the same console backends and console detection, and the same game modes,
+so nothing needs relearning coming from any other HayBox board.
+
+## Heavy vs Light
+
+The two models share the button-to-GPIO map but use opposite switch polarity:
+the Heavy's optical switches drive a pin HIGH when pressed, the Light's
+mechanical switches pull it LOW. As in the stock firmware, the board tells them
+apart at boot from two strap inputs (PB12/PB13): both low means a Heavy, either
+high means a Light. Buttons use the pico's 5 ms debounce on both models.
+
+The Heavy has been tested on hardware. The Light follows the stock firmware's
+logic but has not been tested yet; reports are welcome.
 
 ## USB modes (hold while plugging in)
 
@@ -19,36 +30,37 @@ support** below (experimental: needs hardware wiring and on-device validation).
 before the firmware). Game-mode profiles and their combos (Mod X + Start + L /
 Left / Down / Right / B / R, Mod Y + Start + L) are identical to stock HayBox.
 
-## Console support (wired) — EXPERIMENTAL, UNVALIDATED
+## Console support (wired)
 
-The Frame1 now carries the full stock HayBox console backend set, matching the
-pico build: **GameCube/Wii, N64, NES, and SNES**, alongside the USB modes above.
-They are **auto-detected** when the board is plugged into a console; NES and SNES
-can also be forced with a plug-in hold (**Mod X** = NES, **Mod Y** = SNES), as on
-stock HayBox.
+Plugged into a console instead of a PC, the board detects the console the same
+way the pico does (no USB host after 500 ms, then a GameCube probe, then N64)
+and runs that backend. No wiring is needed: the GameCube/N64 data line is
+carried on the Frame1's USB-C port (pin `PD3`), so a USB-C to GameCube or N64
+cable (Retro-C style) plugs straight in.
 
-> **These console backends have not been tested on hardware.** The STM32F303 has
-> no PIO, so the Joybus (GameCube/N64) and shift-register (NES/SNES) protocols
-> are reimplemented from scratch as cycle-timed bit-bang transports. Treat them
-> as a starting point — the bit timing needs checking on a logic analyser, and
-> problems should be reported as GitHub issues.
+| Console | Status |
+|---|---|
+| **N64** | Working. Validated through a Raphnet N64-to-USB adapter (HID mode, and the raphnetraw emulator plugin with Super Mario 64 and Ocarina of Time); not yet on a real console. |
+| **GameCube / Wii** | Ported, untested. Needs a GameCube console or GameCube adapter to validate. |
+| **NES / SNES** | Not wired, as on the reference pico board (`nes_*` pins are `-1`). |
 
-### Wiring (required — the stock board is USB-only)
+The STM32F303 has no PIO, so the Joybus protocol is a cycle-timed bit-bang
+implementation of what the pico does with PIO. Like the pico, it answers the
+console's identify and poll commands and leaves controller-pak commands
+unanswered (no pak emulated).
 
-None of these lines are routed on the stock Frame1. To use a console backend you
-must wire the relevant pin(s) to an exposed GPIO, plus **ground** and controller
-**power** (from the console, or keep the board on USB power). The pin numbers are
-**placeholders** in `config/frame1/config.cpp` — change them to the pads you
-actually expose:
-
-| Console | Pin(s) in `config/frame1/config.cpp` | Placeholder |
-|---|---|---|
-| GameCube / N64 | `joybus_data` (single data wire) | `PA0` |
-| NES / SNES | `nes_data`, `nes_clock`, `nes_latch` | `PA1` / `PA2` / `PA3` |
-
-GameCube and N64 share the single Joybus data line; NES and SNES share the three
-shift-register lines. Only one console can be connected at a time, and detection
-picks the backend (USB when no console line is active).
+> **Testing N64 through a GameCube/N64 adapter:** adapters that speak both
+> protocols (such as the Raphnet) answer the GameCube probe, so the board starts
+> in GameCube mode on them. A real N64 never does, so this only affects testing.
+> To test N64 on such an adapter, temporarily skip the GameCube probe on your
+> machine (don't commit this):
+>
+> ```sh
+> sed -i 's/} else if (GamecubeConsole(pinout.joybus_data)/} else if (false \&\& GamecubeConsole(pinout.joybus_data)/' HAL/stm32/src/comms/console_detection.cpp
+> ```
+>
+> Undo it afterwards with
+> `git checkout -- HAL/stm32/src/comms/console_detection.cpp`.
 
 ## Configurator and saved config
 
@@ -173,3 +185,9 @@ the inversion never sees a zeroed input.
 This is a property of HayBox's USB trigger output (identical to the RP2040/pico
 backends), not specific to the Frame1 — any HayBox board driven over USB into
 Dolphin needs the same two settings.
+
+## Diagnostic build
+
+`pio run -e frame1_pinfinder` builds the tool that was used to find the
+console data pin. It is not needed for normal use; flash the `frame1` build for
+that.
