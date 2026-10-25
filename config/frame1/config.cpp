@@ -60,13 +60,14 @@ const GpioButtonMapping button_mappings[] = {
 const size_t button_count = sizeof(button_mappings) / sizeof(GpioButtonMapping);
 
 /*
- * Console (wired-protocol) pins. ALL are PLACEHOLDERS - change them to the free
- * pads actually exposed on the board, then wire each console's lines + ground +
- * power. joybus_data (PA0) carries GameCube/N64 (single wire); nes_data/clock/
- * latch (PA1/PA2/PA3) carry NES/SNES (shift register). mux / nunchuk unused.
+ * Console (wired-protocol) pins. joybus_data = PD3 is the GameCube/N64 single-
+ * wire data line, found and validated on hardware with the pin brute-forcer (it
+ * is carried on one of the USB-C pads via a Retro-C style cable). nes_data/clock/
+ * latch (NES/SNES shift register) are still PLACEHOLDERS - set them once those
+ * lines are identified the same way. mux / nunchuk unused.
  */
 const Pinout pinout = {
-    .joybus_data = PA0,
+    .joybus_data = PD3,
     .nes_data = PA1,
     .nes_clock = PA2,
     .nes_latch = PA3,
