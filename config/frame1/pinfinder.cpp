@@ -89,7 +89,7 @@ constexpr size_t kCandidateCount = sizeof(kCandidates) / sizeof(kCandidates[0]);
 
 constexpr uint32_t kHuntWindowMs = 120;  // max active-probe window per pin
 
-void scratch_write(uint8_t idx, uint8_t status, uint8_t rawpin) {
+void scratch_write(uint8_t idx, uint8_t status, uint8_t rawpin, uint8_t released, uint8_t driven) {
     HAL_FLASH_Unlock();
     __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_WRPERR | FLASH_FLAG_PGERR);
 
@@ -100,22 +100,57 @@ void scratch_write(uint8_t idx, uint8_t status, uint8_t rawpin) {
     uint32_t page_error = 0;
     if (HAL_FLASHEx_Erase(&erase, &page_error) == HAL_OK) {
         uint32_t w1 = (uint32_t)idx | ((uint32_t)status << 8) | ((uint32_t)rawpin << 16);
+        uint32_t w2 = (uint32_t)released | ((uint32_t)driven << 8);
         HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, kScratchAddr, kScratchMagic);
         HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, kScratchAddr + 4, w1);
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, kScratchAddr + 8, w2);
     }
     HAL_FLASH_Lock();
 }
 
-bool scratch_read(uint8_t *idx, uint8_t *status, uint8_t *rawpin) {
+bool scratch_read(uint8_t *idx, uint8_t *status, uint8_t *rawpin, uint8_t *released,
+                  uint8_t *driven) {
     const volatile uint32_t *p = reinterpret_cast<const volatile uint32_t *>(kScratchAddr);
     if (p[0] != kScratchMagic) {
         return false;
     }
     uint32_t w1 = p[1];
+    uint32_t w2 = p[2];
     *idx = (uint8_t)(w1 & 0xFF);
     *status = (uint8_t)((w1 >> 8) & 0xFF);
     *rawpin = (uint8_t)((w1 >> 16) & 0xFF);
+    *released = (uint8_t)(w2 & 0xFF);
+    *driven = (uint8_t)((w2 >> 8) & 0xFF);
     return true;
+}
+
+// Can we actually pull `pin` LOW through our open-drain driver (the exact
+// digitalWriteFast path JoybusIO uses)? On the adapter the line has a pull-up,
+// so when released it should read HIGH, and when we hold it low it should read
+// LOW if our drive works. Returns the HIGH-sample counts (out of 100) for each.
+void drive_test(uint8_t pin, uint8_t *released_high, uint8_t *driven_high) {
+    PinName pn = digitalPinToPinName(pin);
+    pinMode(pin, OUTPUT_OPEN_DRAIN);
+
+    digitalWriteFast(pn, HIGH);  // release
+    delayMicroseconds(50);
+    int rh = 0;
+    for (int i = 0; i < 100; i++) {
+        if (digitalReadFast(pn) == HIGH) rh++;
+        delayMicroseconds(10);
+    }
+
+    digitalWriteFast(pn, LOW);  // hold low
+    delayMicroseconds(50);
+    int dh = 0;
+    for (int i = 0; i < 100; i++) {
+        if (digitalReadFast(pn) == HIGH) dh++;
+        delayMicroseconds(10);
+    }
+
+    digitalWriteFast(pn, HIGH);  // release
+    *released_high = (uint8_t)rh;
+    *driven_high = (uint8_t)dh;
 }
 
 // A plausible idle Joybus line sits HIGH between commands (the host pulls it up).
@@ -191,20 +226,26 @@ void hunt_mode() {
     }
 
     if (locked_idx >= 0) {
-        scratch_write((uint8_t)locked_idx, kStatusLocked, kCandidates[locked_idx].pin);
+        scratch_write((uint8_t)locked_idx, kStatusLocked, kCandidates[locked_idx].pin, 0, 0);
         run_n64_controller(kCandidates[locked_idx].pin);  // never returns
     } else if (traffic_idx >= 0) {
-        scratch_write((uint8_t)traffic_idx, kStatusTraffic, kCandidates[traffic_idx].pin);
+        // Found the data pin but the handshake didn't complete. Test whether we
+        // can even pull it low (open-drain) to separate a drive bug from timing.
+        uint8_t released = 0, driven = 0;
+        drive_test(kCandidates[traffic_idx].pin, &released, &driven);
+        scratch_write(
+            (uint8_t)traffic_idx, kStatusTraffic, kCandidates[traffic_idx].pin, released, driven
+        );
     } else {
-        scratch_write(0, kStatusNotFound, 0);
+        scratch_write(0, kStatusNotFound, 0, 0, 0);
     }
 
     for (;;) { /* idle; replug the plain USB cable to read the result */ }
 }
 
 void report_mode() {
-    uint8_t idx = 0, status = 0, rawpin = 0;
-    bool have = scratch_read(&idx, &status, &rawpin);
+    uint8_t idx = 0, status = 0, rawpin = 0, released = 0, driven = 0;
+    bool have = scratch_read(&idx, &status, &rawpin, &released, &driven);
     const char *name = (have && idx < kCandidateCount) ? kCandidates[idx].name : "?";
 
     for (;;) {
@@ -222,8 +263,20 @@ void report_mode() {
         } else if (status == kStatusTraffic) {
             Serial.print("TRAFFIC (no lock) -> data pin = ");
             Serial.println(name);
-            Serial.println("Joybus traffic was seen here but the handshake didn't complete:");
-            Serial.println("the pin is correct, the bit timing is off. This is the timing case.");
+            Serial.print("Drive test: released reads HIGH ");
+            Serial.print(released);
+            Serial.print("/100, driven-low reads HIGH ");
+            Serial.print(driven);
+            Serial.println("/100.");
+            if (released > 50 && driven < 20) {
+                Serial.println("  -> Open-drain drive WORKS (we can pull the line low).");
+                Serial.println("     The fault is bit timing; a logic analyzer is the next step.");
+            } else if (driven >= 20) {
+                Serial.println("  -> We CANNOT pull the line low: open-drain drive is NOT working.");
+                Serial.println("     This is a firmware GPIO bug - tell Claude this result.");
+            } else {
+                Serial.println("  -> Inconclusive (no clear pull-up seen). Re-run on the adapter.");
+            }
         } else {
             Serial.println("NO Joybus traffic on any candidate pin.");
             Serial.println("Either the data line isn't among the probed pins, or RX/GPIO is broken.");
