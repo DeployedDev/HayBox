@@ -9,9 +9,9 @@
  *
  * The game modes, SOCD pairs, keyboard mode and melee/project-m options are
  * identical to the reference (pico) defaults so the full modes/SOCD pipeline is
- * exercised. The communication backend list is trimmed to the USB-only subset
- * that is implemented so far - just DInput. XInput / Nintendo Switch /
- * Configurator entries are added back when those backends are ported.
+ * exercised. The communication backend list matches the pico's too: XInput,
+ * DInput, Nintendo Switch, GameCube, N64, NES, SNES and the Configurator (see
+ * the plug-in holds below).
  */
 
 // clang-format off
