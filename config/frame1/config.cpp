@@ -6,7 +6,7 @@
 #include "core/mode_selection.hpp"
 #include "core/pinout.hpp"
 #include "core/state.hpp"
-#include "input/ActiveHighGpioButtonInput.hpp"
+#include "input/DebouncedGpioButtonInput.hpp"
 #include "reboot.hpp"
 #include "stdlib.hpp"
 
@@ -18,17 +18,16 @@
 Config config = default_config;
 
 /*
- * Frame1 Heavy button -> GPIO map.
+ * Frame1 button -> GPIO map (shared by the Heavy and the Light).
  *
- * Pins were captured and validated live on-device (see milestone 1). The Button
- * enum assignments follow the standard B0XX/HayBox semantics (verified against
- * Melee20Button + GamecubeBackend): e.g. Z == buttonR (BTN_RF3), R ==
- * triggerRDigital (BTN_RF5), L == triggerLDigital (BTN_LF4). Comments give the
- * Frame1's own silk-screen label.
+ * Pins were captured and validated live on-device (see milestone 1), and match
+ * the pin set configured by Frame1's stock firmware (v2.3.1), which is a single
+ * build for both models. The Button enum assignments follow the standard
+ * B0XX/HayBox semantics (verified against Melee20Button + GamecubeBackend):
+ * e.g. Z == buttonR (BTN_RF3), R == triggerRDigital (BTN_RF5), L ==
+ * triggerLDigital (BTN_LF4). Comments give the Frame1's own silk-screen label.
  *
- * The switches are active-HIGH optical sensors, so these are read through
- * ActiveHighGpioButtonInput (pull-downs + non-inverted sense), not the stock
- * active-low GpioButtonInput.
+ * Switch polarity differs by model - see frame1_buttons_active_high().
  */
 const GpioButtonMapping button_mappings[] = {
     { BTN_LF4, PE5  }, // L
@@ -58,6 +57,20 @@ const GpioButtonMapping button_mappings[] = {
     { BTN_RT1, PB1  }, // A
 };
 const size_t button_count = sizeof(button_mappings) / sizeof(GpioButtonMapping);
+
+/*
+ * Heavy vs Light. As in Frame1's stock firmware, PB12 and PB13 are pull-up
+ * strap inputs read before the buttons: the Heavy ties both to ground and its
+ * optical switches drive the pin HIGH when pressed; if either strap reads high
+ * (the Light), its mechanical switches pull the pin LOW when pressed, and the
+ * stock firmware inverts the readings. Button pins use pull-ups on both models.
+ */
+static bool frame1_buttons_active_high() {
+    pinMode(PB12, INPUT_PULLUP);
+    pinMode(PB13, INPUT_PULLUP);
+    delayMicroseconds(50);
+    return digitalRead(PB12) == LOW && digitalRead(PB13) == LOW;
+}
 
 /*
  * Console (wired-protocol) pins. joybus_data = PD3 is the GameCube/N64 single-
@@ -100,7 +113,10 @@ void setup() {
 
     // Create GPIO input source and read it once so button-holds are available
     // for backend/mode selection in initialize_backends().
-    static ActiveHighGpioButtonInput gpio_input(button_mappings, button_count);
+    static DebouncedGpioButtonInput<button_count> gpio_input(
+        button_mappings,
+        frame1_buttons_active_high()
+    );
     gpio_input.UpdateInputs(inputs);
 
     /* DFU note: the Frame1's protected bootloader enters DFU when Up is held at
