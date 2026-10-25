@@ -60,16 +60,18 @@ const size_t button_count = sizeof(button_mappings) / sizeof(GpioButtonMapping);
 
 /*
  * Heavy vs Light. As in Frame1's stock firmware, PB12 and PB13 are pull-up
- * strap inputs read before the buttons: the Heavy ties both to ground and its
- * optical switches drive the pin HIGH when pressed; if either strap reads high
- * (the Light), its mechanical switches pull the pin LOW when pressed, and the
- * stock firmware inverts the readings. Button pins use pull-ups on both models.
+ * strap inputs read before the buttons; if either reads high, the stock
+ * firmware inverts every button reading (its button bits are 0 = pressed).
+ * So: a strap high means the Heavy, whose optical switches drive the pin HIGH
+ * when pressed (confirmed on a Heavy: with pull-ups its buttons idle LOW);
+ * both straps low means the Light, whose mechanical switches pull the pin LOW
+ * when pressed. Button pins use pull-ups on both models, as in stock.
  */
 static bool frame1_buttons_active_high() {
     pinMode(PB12, INPUT_PULLUP);
     pinMode(PB13, INPUT_PULLUP);
     delayMicroseconds(50);
-    return digitalRead(PB12) == LOW && digitalRead(PB13) == LOW;
+    return digitalRead(PB12) == HIGH || digitalRead(PB13) == HIGH;
 }
 
 /*
