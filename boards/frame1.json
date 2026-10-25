@@ -26,6 +26,6 @@
     "protocol": "dfu",
     "protocols": ["blackmagic", "cmsis-dap", "dfu", "jlink", "serial", "stlink"]
   },
-  "url": "https://b0xx.com",
+  "url": "https://frame1.gg/",
   "vendor": "Frame1"
 }
