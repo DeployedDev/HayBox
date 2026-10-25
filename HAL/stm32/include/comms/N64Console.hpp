@@ -12,7 +12,9 @@
  * Shares the single-wire transport (JoybusIO) and data pin with GameCube; adds
  * N64 command handling (0x00/0xFF ID, 0x01 poll). The Controller Pak
  * (rumble/mempak, commands 0x02/0x03) is NOT implemented - identity reports no
- * pak and pak reads/writes are drained but never answered, as on the pico.
+ * pak, and pak reads/writes get a minimal valid "empty pak" reply. The pico
+ * leaves them unanswered (fine on a real console), but the Raphnet adapter
+ * drops the controller if they go unanswered, so we reply (see N64Console.cpp).
  *
  * Same call contract as GamecubeConsole: on WaitForPoll()==OK interrupts are
  * left masked and SendReport() must follow immediately.
