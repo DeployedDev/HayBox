@@ -7,7 +7,7 @@
 #include <stdint.h>
 
 /*
- * STM32 (Frame1) GameCube / Wii Joybus device.  [timing unvalidated]
+ * STM32 (Frame1) GameCube / Wii Joybus device.  [not yet tested on hardware]
  *
  * Replaces the pico HAL's GamecubeConsole (joybus-pio / RP2040 PIO). The
  * single-wire bit transport lives in JoybusIO; this class adds the GameCube
@@ -19,8 +19,8 @@
  * still being sent, then calls WaitForPollEnd() (waits for the poll to finish)
  * and SendReport(), which replies and re-enables interrupts.
  *
- * HARDWARE: the Frame1 is otherwise USB-only; data_pin must be an exposed GPIO
- * wired to the GameCube data line (plus ground + controller power).
+ * HARDWARE: on the Frame1 the data line is PD3, carried on the USB-C port, so
+ * a USB-C to GameCube cable connects it with no wiring (see config.cpp).
  */
 
 enum class GcPollStatus { OK, ERROR };

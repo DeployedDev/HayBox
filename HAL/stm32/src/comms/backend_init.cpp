@@ -23,16 +23,17 @@
 /*
  * STM32 (Frame1) backend initialization.
  *
- * Mirrors HAL/pico/src/comms/backend_init.cpp, trimmed to the USB subset that
- * applies to a USB-only board (no joybus/NES console backends). The plug-in
- * button holds and defaults come from config_defaults.hpp and match stock
- * HayBox: XInput by default, hold Z for DInput, hold X for Nintendo Switch,
- * hold Start for the Configurator. As on the pico, an unknown backend id
- * falls back to the Configurator.
+ * Mirrors HAL/pico/src/comms/backend_init.cpp, with the same backend set: the
+ * USB backends (XInput, DInput, Nintendo Switch, Configurator) and the console
+ * backends (GameCube, N64, NES, SNES). The plug-in button holds and defaults
+ * come from config_defaults.hpp and match stock HayBox: XInput by default, hold
+ * Z for DInput, hold X for Nintendo Switch, hold Start for the Configurator;
+ * otherwise console detection picks the backend. As on the pico, an unknown
+ * backend id falls back to the Configurator.
  *
- * The RP2040 version also consults the watchdog SCRATCH registers to carry a
- * temporarily-selected backend across a reboot; there is no equivalent here
- * yet, so backend selection is purely button-hold + configured default.
+ * The RP2040 version also checks the watchdog SCRATCH registers for a backend
+ * chosen in its OLED config menu before a reboot. The Frame1 has no display or
+ * config menu, so nothing sets one and that check is not needed here.
  */
 
 size_t initialize_backends(

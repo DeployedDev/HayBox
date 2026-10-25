@@ -5,7 +5,8 @@
 #include <stdint.h>
 
 /*
- * Shared single-wire Joybus transport for the STM32 (Frame1).  [unvalidated]
+ * Shared single-wire Joybus transport for the STM32 (Frame1). Validated on N64
+ * (Raphnet adapter); GameCube not yet tested.
  *
  * GameCube and N64 both sit on this. It is the STM32 stand-in for the bit-level
  * half of JonnyHaystack/joybus-pio (which the RP2040 does in PIO): an open-drain
@@ -19,8 +20,8 @@
  * and USB keep running. IRQs stay masked through the command/response burst and
  * between a WaitForPoll()==OK and the matching SendReport().
  *
- * The us->cycle constants and the fast-GPIO path are the first things to check
- * on a logic analyser on real hardware.
+ * If timing ever needs checking (e.g. for GameCube), the us->cycle constants
+ * and the fast-GPIO path are where to look, ideally with a logic analyser.
  */
 class JoybusIO {
   public:

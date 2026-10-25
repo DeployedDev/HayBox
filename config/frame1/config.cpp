@@ -20,9 +20,9 @@ Config config = default_config;
 /*
  * Frame1 button -> GPIO map (shared by the Heavy and the Light).
  *
- * Pins were captured and validated live on-device (see milestone 1), and match
- * the pin set configured by Frame1's stock firmware (v2.3.1), which is a single
- * build for both models. The Button enum assignments follow the standard
+ * Pins were captured and validated live on a Heavy, and match the pin set
+ * configured by Frame1's stock firmware (v2.3.1), which is a single build for
+ * both models. The Button enum assignments follow the standard
  * B0XX/HayBox semantics (verified against Melee20Button + GamecubeBackend):
  * e.g. Z == buttonR (BTN_RF3), R == triggerRDigital (BTN_RF5), L ==
  * triggerLDigital (BTN_LF4). Comments give the Frame1's own silk-screen label.

@@ -6,7 +6,7 @@
 
 /*
  * Shared NES/SNES shift-register transport (device side) for the STM32
- * (Frame1).  [timing unvalidated]
+ * (Frame1).  [not tested on hardware]
  *
  * STM32 stand-in for the bit-level half of JonnyHaystack/nes-pio (RP2040 PIO).
  * The console drives LATCH and CLOCK (both idle high, pulse low except LATCH
@@ -14,8 +14,9 @@
  * active-low (pressed = line driven low, released = hi-Z high). On a latch the
  * controller loads state and presents bit 0; each CLOCK pulse advances a bit.
  *
- * DATA is open-drain; CLOCK and LATCH are inputs. HARDWARE: the Frame1 is
- * USB-only, so all three must be wired to exposed GPIOs + ground + power.
+ * DATA is open-drain; CLOCK and LATCH are inputs. HARDWARE: the Frame1 has no
+ * NES/SNES lines, so its pinout sets them to -1 (as the reference pico board
+ * does) and this transport is built but unused.
  */
 class ShiftRegisterIO {
   public:

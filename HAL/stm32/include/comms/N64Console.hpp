@@ -7,7 +7,8 @@
 #include <stdint.h>
 
 /*
- * STM32 (Frame1) N64 Joybus device.  [timing unvalidated]
+ * STM32 (Frame1) N64 Joybus device. Validated through a Raphnet N64-to-USB
+ * adapter (HID mode and raphnetraw); not yet on a real console.
  *
  * Shares the single-wire transport (JoybusIO) and data pin with GameCube; adds
  * N64 command handling (0x00/0xFF ID, 0x01 poll). The Controller Pak

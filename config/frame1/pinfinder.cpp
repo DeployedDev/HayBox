@@ -64,9 +64,9 @@ struct Candidate {
     const char *name;
 };
 
-// Everything the normal scan probes, PLUS PA11/PA12/PA13/PA14. Button-matrix
-// pins (which idle LOW through their pull-downs) and the HSE crystal (PF0/PF1)
-// are left out; the idle-high pre-check skips anything else that idles low.
+// Everything the normal scan probes, PLUS PA11/PA12/PA13/PA14. Button pins
+// and the HSE crystal (PF0/PF1) are left out; the idle-high pre-check skips
+// anything else that idles low.
 const Candidate kCandidates[] = {
     { PA0, "PA0" },   { PA1, "PA1" },   { PA2, "PA2" },   { PA3, "PA3" },
     { PA4, "PA4" },   { PA5, "PA5" },   { PA6, "PA6" },   { PA7, "PA7" },
@@ -154,7 +154,7 @@ void drive_test(uint8_t pin, uint8_t *released_high, uint8_t *driven_high) {
 }
 
 // A plausible idle Joybus line sits HIGH between commands (the host pulls it up).
-// Skip anything that idles low (button pulled-down pins, SWCLK's pull-down, etc.)
+// Skip anything that idles low (e.g. SWCLK's pull-down)
 // so they can't be mistaken for bus traffic.
 bool pin_idles_high(uint8_t pin) {
     pinMode(pin, INPUT_PULLUP);

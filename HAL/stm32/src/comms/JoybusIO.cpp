@@ -3,11 +3,8 @@
 #include <Arduino.h>
 
 /*
- * See JoybusIO.hpp. [DRAFT - not compiled against a specific STM32duino core,
- * not timing-validated.] Most likely tuning points on hardware:
- *   1. digitalWriteFast()/digitalReadFast() with a PinName - if the core lacks
- *      them, fall back to LL_GPIO_* on the resolved port/pin.
- *   2. _c1/_c2/_c3 (bit-cell sub-timings and the RX sample point).
+ * See JoybusIO.hpp. Timing lives in _c1/_c2/_c3 (bit-cell sub-timings and the
+ * RX sample point), set from SystemCoreClock in Init().
  */
 
 #define JB_LOW()   digitalWriteFast(_pn, LOW)

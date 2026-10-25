@@ -3,9 +3,9 @@
 #include <Arduino.h>
 
 /*
- * See ShiftRegisterIO.hpp. [DRAFT - not compiled against a specific STM32duino
- * core, not timing-validated.] The latch/clock edge handling and the exact
- * bit-vs-clock alignment are the things to confirm on a logic analyser.
+ * See ShiftRegisterIO.hpp. Not tested on hardware: if it is ever wired up, the
+ * latch/clock edge handling and the exact bit-vs-clock alignment are the things
+ * to confirm on a logic analyser.
  */
 
 #define SR_DATA_LOW()   digitalWriteFast(_data, LOW)
