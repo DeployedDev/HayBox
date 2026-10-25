@@ -143,48 +143,52 @@ works in Dolphin through its native XInput backend with no extra mapping.
 
 ## Using with Dolphin (DInput mode - hold Z at plug-in)
 
-In DInput mode the board enumerates as **`Adafruit FRAME1`**. Select it as the
-device, set it to **Standard Controller**, and map the buttons as normal. Two
-settings are not obvious:
+In DInput mode the board enumerates as **`Adafruit FRAME1`**. In Dolphin (Slippi
+or the Project+ build; each has its own controller settings), set Port 1 to
+**Standard Controller**, select the device, and map it as below. This matches
+HayBox's own profile, `dolphin/HayBox_DInput_Linux.ini`; only the device name
+differs. Tested on Linux with Slippi and Project+.
 
-### Analog R trigger (light / medium shield)
+| Dolphin input | Mapping | Dolphin input | Mapping |
+|---|---|---|---|
+| A | `Button 1` | Main Stick Up / Down | `Axis 1-` / `Axis 1+` |
+| B | `Button 0` | Main Stick Left / Right | `Axis 0-` / `Axis 0+` |
+| X | `Button 3` | C-Stick Up / Down | `Axis 4-` / `Axis 4+` |
+| Y | `Button 2` | C-Stick Left / Right | `Axis 3-` / `Axis 3+` |
+| Z | `Button 4` | D-Pad Up / Down | `Axis 7-` / `Axis 7+` |
+| Start | `Button 9` | D-Pad Left / Right | `Axis 6-` / `Axis 6+` |
+| L (digital) | `Button 7` | L-Analog | `` `Axis 2-+` `` |
+| R (digital) | `Button 5` | R-Analog | `` `Axis 5-+` `` |
 
-Bind **R-Analog** to the inverted axis expression and set that input's
-**Range to 50%**:
+Newer Dolphin builds name the buttons instead (`SOUTH` = B, `EAST` = A, `C` =
+Y, `NORTH` = X, `WEST` = Z, `Z` = R, `TR` = L, `TR2` = Start). Clicking a box
+and pressing the Frame1 button fills it in either way.
 
-```
-!`Axis 5-`
-```
+Settings that are not obvious:
 
-Two things are needed:
+- **Analog triggers: type `` `Axis 2-+` `` and `` `Axis 5-+` `` (with the
+  backticks), Range 100%, Trigger Threshold 0.** `-+` makes Dolphin read the
+  trigger's full range, from rest (0) to full. Check in **Tools -> TAS Input**:
+  the R slider reads 0 at rest, **49** for LS and **95** for MS (Melee mode);
+  R reads 255 because the digital R press makes Dolphin report a full trigger.
+  Hard shield and airdodge come from the digital L/R.
+- **Stick Dead Zone 0.**
+- **Background Input on** (in the Controllers window's options). Otherwise
+  Dolphin ignores the controller whenever its game window is not focused,
+  including while the TAS Input window is.
 
-- **Inversion** (the expression above). The GameCube analog triggers rest at the
-  *floor* of their HID axis (Dolphin reads a resting trigger as full `Axis N-`),
-  so the binding is inverted to read rest = 0 and press = full.
-- **Range 50%.** The inverted half-axis treats the axis *midpoint* as "full," so
-  every value comes through roughly doubled (LS 49 -> ~100, MS 94 -> ~190). Melee
-  treats analog >= 140 as a hard shield, so an un-halved MS reads as a full
-  shield instead of medium. Setting the R-Analog input's Range to 50% scales it
-  back: LS ~= 49 (light), MS ~= 94 (medium). You can confirm the values with
-  Dolphin's TAS Input window (the L/R sliders read 0-255).
+### Stick values over USB are scaled by Dolphin
 
-Hard shield is unaffected either way -- it comes from the digital **R**
-(`Button 5`), not the analog value. L is digital in Melee, so bind **L** to its
-digital button and leave **L-Analog** empty.
-
-### Enable "Background Input"
-
-In the controller config **Options**, check **Background Input**.
-
-Without it, when the game window loses focus Dolphin gates every input to 0
-before evaluating the mappings. Because R-Analog is the one inverted binding,
-`!0` evaluates to a *full* R press — so R looks stuck whenever you click away
-from the game. Enabling Background Input keeps Dolphin reading the real axis, so
-the inversion never sees a zeroed input.
-
-This is a property of HayBox's USB trigger output (identical to the RP2040/pico
-backends), not specific to the Frame1 — any HayBox board driven over USB into
-Dolphin needs the same two settings.
+HayBox's stick values are raw GameCube values, and over a GameCube connection
+Dolphin passes them through unchanged. Over USB (DInput or XInput), Dolphin
+converts the gamepad's axes into its emulated stick and the values come out
+**shorter**: angles are preserved, but distances are scaled down (most on
+diagonals). For example, Mod X + Up-Right + C-Right in Project+ mode sends
+(72, 61) and reads about (42, 36) in TAS Input. This applies to any HayBox
+controller over USB, not just the Frame1. For exact values in Dolphin, connect
+through a Wii U style GameCube adapter (port set to "GameCube Adapter for Wii
+U") with a USB-C to GameCube cable, so the board runs its GameCube mode
+(not yet validated on the Frame1; see **Console support**).
 
 ## Diagnostic build
 
