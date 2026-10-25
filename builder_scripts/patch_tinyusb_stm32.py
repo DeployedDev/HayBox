@@ -16,8 +16,9 @@ run every build and are no-ops once already applied.
    where that was the signature; the standalone Adafruit TinyUSB library we
    use on STM32 bundles TinyUSB 0.20, which added a trailing `bool is_isr`.
    All three calls run from task context (tud_task), so `false` is appended.
-   Keeping the pin identical to the pico and shimming here is preferred over
-   forking the library.
+   It also allocates its own interface and endpoint numbers, which Adafruit
+   TinyUSB 3.x requires (see shim 3 below). Keeping the pin identical to the
+   pico and shimming here is preferred over forking the library.
 """
 
 Import("env")  # noqa: F821
@@ -92,6 +93,28 @@ XINPUT_SHIMS = (
         "            false\n"
         "        );",
     ),
+    # 3. Endpoint and interface numbers. The pinned commit hardcodes EP 0x81 /
+    # 0x01 and relies on the USB core to renumber them, and addInterface() used
+    # to bump the interface count. Adafruit TinyUSB 3.x does neither: each
+    # interface must call allocInterface()/allocEndpoint() itself, as its CDC
+    # does. Without this, XInput and the CDC Serial both claim interface 0 and
+    # EP 0x81 (the CDC notification EP, 8 bytes), so every 20-byte report goes
+    # out as 8+4+8-byte packets that the host reads as separate reports.
+    # XInput is added first (XInputBackend re-adds Serial after it), so it
+    # gets interface 0 and EP 0x81/0x01, as on a real pad and on the pico.
+    (
+        "    // usb core will automatically update endpoint number\n"
+        "    const uint8_t desc[] = { TUD_XINPUT_DESCRIPTOR(itfnum, 0, EPOUT, EPIN, EPSIZE, _interval_ms) };\n",
+        "    // Frame1 shim: Adafruit TinyUSB 3.x does not renumber, so allocate.\n"
+        "    uint8_t ep_in = EPIN;\n"
+        "    uint8_t ep_out = EPOUT;\n"
+        "    if (buf) {\n"
+        "        itfnum = TinyUSBDevice.allocInterface(1);\n"
+        "        ep_in = TinyUSBDevice.allocEndpoint(TUSB_DIR_IN);\n"
+        "        ep_out = TinyUSBDevice.allocEndpoint(TUSB_DIR_OUT);\n"
+        "    }\n"
+        "    const uint8_t desc[] = { TUD_XINPUT_DESCRIPTOR(itfnum, 0, ep_out, ep_in, EPSIZE, _interval_ms) };\n",
+    ),
 )
 
 if not os.path.isfile(xinput_src):
@@ -105,9 +128,9 @@ else:
     if patched != src:
         with open(xinput_src, "w", encoding="utf-8") as f:
             f.write(patched)
-        print("patch_tinyusb_stm32: shimmed XInput usbd_edpt_xfer() for TinyUSB 0.20")
+        print("patch_tinyusb_stm32: shimmed XInput lib for Adafruit TinyUSB 3.x")
     elif all(new in src for _, new in XINPUT_SHIMS):
-        print("patch_tinyusb_stm32: XInput usbd_edpt_xfer() shim already in place")
+        print("patch_tinyusb_stm32: XInput shims already in place")
     else:
         # Neither the known 4-arg shapes nor the shimmed forms were found: the
         # library pin has changed and this shim needs revisiting.
