@@ -5,13 +5,9 @@
 // N64 controller identity: device 0x0005 (sent 0x05 0x00) + status 0x02 - exactly
 // joybus-pio's default_n64_status, i.e. what the pico sends.
 //
-// Controller Pak commands (0x02 read / 0x03 write): the pico does NOT answer them
-// (they fall through unhandled). We currently answer them minimally - a valid
-// "empty pak" read (32 zero bytes + CRC 0x00) and a write ack. This was restored
-// after a test in which dropping them appeared to break the Raphnet adapter, but
-// that test was confounded (the adapter was stuck in raw mode at the time), so
-// whether the adapter needs these replies is UNVERIFIED. Re-test the
-// pico-faithful behaviour (no reply) once the transport is solid.
+// Controller Pak commands (0x02 read / 0x03 write) are not handled, as on the
+// pico (joybus-pio): they fall into the unknown-command path, which waits for the
+// command to finish and sends no reply.
 static const uint8_t N64_ID[3] = { 0x05, 0x00, 0x02 };
 
 N64Console::N64Console(uint8_t data_pin) : _io(data_pin) {}
@@ -61,26 +57,7 @@ int N64Console::DetectActive(uint32_t budget_ms) {
             case 0x01:  // poll: host accepted us and is polling -> this is the pin
                 interrupts();
                 return 1;
-            case 0x02: {  // read Controller Pak -> valid "empty pak" reply (see note above)
-                uint8_t addr[2];
-                _io.ReadBytes(addr, 2);
-                uint8_t resp[33];
-                for (int i = 0; i < 33; i++) resp[i] = 0;  // 32 data + CRC (CRC of zeros = 0)
-                _io.SendBytes(resp, sizeof(resp));
-                _io.SendStopBit();
-                interrupts();
-                break;
-            }
-            case 0x03: {  // write Controller Pak -> drain + ack (see note above)
-                uint8_t buf[34];
-                _io.ReadBytes(buf, sizeof(buf));
-                uint8_t crc = 0;
-                _io.SendBytes(&crc, 1);
-                _io.SendStopBit();
-                interrupts();
-                break;
-            }
-            default:  // unknown command: let it finish so its data isn't read as a new one
+            default:  // unknown command (incl. pak 0x02/0x03): let it finish, no reply
                 _io.WaitLineIdle();
                 interrupts();
                 break;
@@ -116,26 +93,7 @@ N64PollStatus N64Console::WaitForPoll() {
             case 0x01:  // poll / status
                 // IRQs stay MASKED: caller must SendReport() immediately.
                 return N64PollStatus::OK;
-            case 0x02: {  // read Controller Pak -> valid "empty pak" reply (see note above)
-                uint8_t addr[2];
-                _io.ReadBytes(addr, 2);
-                uint8_t resp[33];
-                for (int i = 0; i < 33; i++) resp[i] = 0;  // 32 data + CRC (CRC of zeros = 0)
-                _io.SendBytes(resp, sizeof(resp));
-                _io.SendStopBit();
-                interrupts();
-                break;
-            }
-            case 0x03: {  // write Controller Pak -> drain + ack (see note above)
-                uint8_t buf[34];  // 2 addr + 32 data
-                _io.ReadBytes(buf, sizeof(buf));
-                uint8_t crc = 0;
-                _io.SendBytes(&crc, 1);
-                _io.SendStopBit();
-                interrupts();
-                break;
-            }
-            default:  // unknown command: let it finish so its data isn't read as a new one
+            default:  // unknown command (incl. pak 0x02/0x03): let it finish, no reply
                 _io.WaitLineIdle();
                 interrupts();
                 break;
