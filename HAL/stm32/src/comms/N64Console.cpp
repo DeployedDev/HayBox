@@ -2,9 +2,12 @@
 
 #include <Arduino.h>
 
-// N64 controller identity: 0x05 0x00 + status byte. 0x02 = no Controller Pak
-// (pak/rumble is not implemented). VERIFY this status byte on hardware - some
-// consoles expect 0x01; it affects whether the console issues pak reads.
+// N64 controller identity: device 0x0005 (sent 0x05 0x00) + status 0x02. This is
+// byte-for-byte joybus-pio's default_n64_status, i.e. exactly what the pico sends.
+// Controller Pak commands (0x02 read / 0x03 write) are NOT answered: they are
+// drained to stay in sync and otherwise ignored, as on the pico. A fake pak
+// reply from a controller that reports "no pak" confuses games (OoT shows
+// "No Controller"), so no stub responses here.
 static const uint8_t N64_ID[3] = { 0x05, 0x00, 0x02 };
 
 N64Console::N64Console(uint8_t data_pin) : _io(data_pin) {}
@@ -50,22 +53,15 @@ int N64Console::DetectActive(uint32_t budget_ms) {
             case 0x01:  // poll: host accepted us and is polling -> this is the pin
                 interrupts();
                 return 1;
-            case 0x02: {  // read Controller Pak (not implemented) -> zeros + CRC
+            case 0x02: {  // read Controller Pak: drain the address, no reply (as on the pico)
                 uint8_t addr[2];
                 _io.ReadBytes(addr, 2);
-                uint8_t resp[33];
-                for (int i = 0; i < 33; i++) resp[i] = 0;
-                _io.SendBytes(resp, sizeof(resp));
-                _io.SendStopBit();
                 interrupts();
                 break;
             }
-            case 0x03: {  // write Controller Pak (not implemented) -> drain + ack
+            case 0x03: {  // write Controller Pak: drain addr + data, no reply (as on the pico)
                 uint8_t buf[34];
                 _io.ReadBytes(buf, sizeof(buf));
-                uint8_t crc = 0;
-                _io.SendBytes(&crc, 1);
-                _io.SendStopBit();
                 interrupts();
                 break;
             }
@@ -99,22 +95,15 @@ N64PollStatus N64Console::WaitForPoll() {
             case 0x01:  // poll / status
                 // IRQs stay MASKED: caller must SendReport() immediately.
                 return N64PollStatus::OK;
-            case 0x02: {  // read Controller Pak (not implemented -> zeros)
+            case 0x02: {  // read Controller Pak: drain the address, no reply (as on the pico)
                 uint8_t addr[2];
                 _io.ReadBytes(addr, 2);
-                uint8_t resp[33];
-                for (int i = 0; i < 33; i++) resp[i] = 0;  // 32 data + CRC byte
-                _io.SendBytes(resp, sizeof(resp));
-                _io.SendStopBit();
                 interrupts();
                 break;
             }
-            case 0x03: {  // write Controller Pak (not implemented -> drain + ack)
+            case 0x03: {  // write Controller Pak: drain addr + data, no reply (as on the pico)
                 uint8_t buf[34];  // 2 addr + 32 data
                 _io.ReadBytes(buf, sizeof(buf));
-                uint8_t crc = 0;
-                _io.SendBytes(&crc, 1);
-                _io.SendStopBit();
                 interrupts();
                 break;
             }

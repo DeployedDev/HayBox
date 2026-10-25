@@ -12,7 +12,7 @@
  * Shares the single-wire transport (JoybusIO) and data pin with GameCube; adds
  * N64 command handling (0x00/0xFF ID, 0x01 poll). The Controller Pak
  * (rumble/mempak, commands 0x02/0x03) is NOT implemented - identity reports no
- * pak and pak reads/writes are answered minimally.
+ * pak and pak reads/writes are drained but never answered, as on the pico.
  *
  * Same call contract as GamecubeConsole: on WaitForPoll()==OK interrupts are
  * left masked and SendReport() must follow immediately.
