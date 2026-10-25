@@ -29,7 +29,7 @@ int GamecubeConsole::DetectActive(uint32_t budget_ms) {
         if (!saw_traffic && (millis() - start) >= idle_giveup_ms) break;
 
         // Listen with IRQs masked so the command's first edge is caught on time
-        // (see WaitForPoll); each pass is bounded to ~0.5 ms by ListenChunk().
+        // (see WaitForPollStart); each pass is bounded to ~0.5 ms by ListenChunk().
         noInterrupts();
         uint8_t cmd = 0;
         int r = _io.ReadBytesEx(&cmd, 1, _io.ListenChunk());
@@ -73,7 +73,7 @@ int GamecubeConsole::DetectActive(uint32_t budget_ms) {
     return saw_traffic ? 0 : -1;
 }
 
-GcPollStatus GamecubeConsole::WaitForPoll() {
+GcPollStatus GamecubeConsole::WaitForPollStart() {
     for (;;) {
         // Listen with IRQs MASKED, so a command's first falling edge is caught with
         // no interrupt latency and every bit is sampled 2 us after its real edge -
@@ -103,16 +103,12 @@ GcPollStatus GamecubeConsole::WaitForPoll() {
                 _io.SendStopBit();
                 interrupts();
                 break;
-            case 0x40: {  // poll / status
-                uint8_t args[2];  // mode + rumble
-                if (!_io.ReadBytes(args, 2)) {
-                    _io.WaitLineIdle();  // framing error: resync
-                    interrupts();
-                    break;
-                }
-                // IRQs stay MASKED: caller must SendReport() immediately.
+            case 0x40:  // poll: first byte received
+                // Return now, with IRQs MASKED, so the caller can read inputs and
+                // build the report while the poll's two argument bytes (mode +
+                // rumble) are still arriving - as the pico does. They aren't read;
+                // WaitForPollEnd() waits for the command to finish.
                 return GcPollStatus::OK;
-            }
             default:  // unknown command: let it finish so its data isn't read as a new one
                 _io.WaitLineIdle();
                 interrupts();
@@ -121,8 +117,14 @@ GcPollStatus GamecubeConsole::WaitForPoll() {
     }
 }
 
+GcPollStatus GamecubeConsole::WaitForPollEnd() {
+    _io.WaitLineIdle();  // rest of the poll (2 bytes) + stop bit
+    return GcPollStatus::OK;
+}
+
 void GamecubeConsole::SendReport(const gc_report_t *report) {
-    _io.SendBytes(reinterpret_cast<const uint8_t *>(report), sizeof(gc_report_t));
+    // WaitForPollEnd() already waited for the line to go idle.
+    _io.SendBytes(reinterpret_cast<const uint8_t *>(report), sizeof(gc_report_t), false);
     _io.SendStopBit();
     interrupts();
 }

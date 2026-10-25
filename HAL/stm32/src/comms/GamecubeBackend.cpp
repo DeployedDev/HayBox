@@ -20,13 +20,20 @@ CommunicationBackendId GamecubeBackend::BackendId() {
 }
 
 void GamecubeBackend::SendReport() {
-    // On the pico the PIO reads the poll command in the background while the CPU
-    // scans inputs; the STM32 bit-bang can't, so we scan + build the report
-    // FIRST, then fire it the instant the poll arrives (GamecubeConsole's call
-    // contract: SendReport must immediately follow WaitForPoll()==OK). Costs up
-    // to one poll of input latency versus the pico, but keeps the Joybus
-    // command->response turnaround inside the console's timing window.
-    ScanInputs();
+    // Same order as the pico: update slower inputs before waiting for the poll,
+    // then read the fast inputs (the buttons) and run the game mode while the
+    // rest of the poll is still arriving, so the report reflects the inputs at
+    // poll time. (The pico also waits 40 us first to sample a little later; we
+    // skip that so the reply isn't pushed past the end of the poll.)
+    ScanInputs(InputScanSpeed::SLOW);
+    ScanInputs(InputScanSpeed::MEDIUM);
+
+    // Leaves IRQs masked until SendReport() below.
+    if (_gamecube.WaitForPollStart() != GcPollStatus::OK) {
+        return;
+    }
+
+    ScanInputs(InputScanSpeed::FAST);
     UpdateOutputs();
 
     // Digital outputs - mapping identical to HAL/pico GamecubeBackend.
@@ -51,9 +58,8 @@ void GamecubeBackend::SendReport() {
     _report.l_analog = _outputs.triggerLAnalog;
     _report.r_analog = _outputs.triggerRAnalog;
 
-    // Wait for the console poll, then respond immediately (IRQs are masked
-    // between these two calls by the console; do nothing else in between).
-    if (_gamecube.WaitForPoll() == GcPollStatus::OK) {
+    // Send outputs to the console once the poll has finished.
+    if (_gamecube.WaitForPollEnd() == GcPollStatus::OK) {
         _gamecube.SendReport(&_report);
     }
 }

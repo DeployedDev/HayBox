@@ -14,8 +14,10 @@
  * (rumble/mempak, commands 0x02/0x03) is NOT implemented - identity reports no
  * pak, and pak reads/writes are left unanswered, as on the pico.
  *
- * Same call contract as GamecubeConsole: on WaitForPoll()==OK interrupts are
- * left masked and SendReport() must follow immediately.
+ * Call contract: when WaitForPoll() returns OK, interrupts are left masked. The
+ * caller then reads inputs, runs the game mode and builds the report (as the
+ * pico does after its poll), and calls SendReport(), which waits for the poll
+ * to finish, replies, and re-enables interrupts. Keep that work short.
  */
 
 enum class N64PollStatus { OK, ERROR };

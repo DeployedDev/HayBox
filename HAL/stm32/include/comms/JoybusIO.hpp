@@ -29,8 +29,11 @@ class JoybusIO {
     void Init();                 // open-drain pin + DWT cycle counter
     bool ReadLine();             // true = line high (released/idle)
 
-    // Send `len` bytes MSB-first. Caller masks IRQs.
-    void SendBytes(const uint8_t *data, uint8_t len);
+    // Send `len` bytes MSB-first. Caller masks IRQs. With `turnaround` (default)
+    // it first waits out the command's stop bit plus a short gap - for replies
+    // sent right after reading a command. Pass false when the caller has already
+    // waited for the line to go idle (e.g. after processing a poll).
+    void SendBytes(const uint8_t *data, uint8_t len, bool turnaround = true);
     // Read `len` bytes MSB-first; false on inter-edge timeout. Caller masks IRQs.
     bool ReadBytes(uint8_t *data, uint8_t len);
     // Like ReadBytes, but waits up to `first_edge_timeout` cycles for the FIRST

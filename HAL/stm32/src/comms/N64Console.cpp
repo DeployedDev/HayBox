@@ -102,7 +102,11 @@ N64PollStatus N64Console::WaitForPoll() {
 }
 
 void N64Console::SendReport(const n64_report_t *report) {
-    _io.SendBytes(reinterpret_cast<const uint8_t *>(report), sizeof(n64_report_t));
+    // The backend reads inputs and runs the game mode between WaitForPoll() and
+    // here (as on the pico), so the poll's stop bit has usually already passed:
+    // wait for the line to go idle instead of hunting for the stop-bit edge.
+    _io.WaitLineIdle();
+    _io.SendBytes(reinterpret_cast<const uint8_t *>(report), sizeof(n64_report_t), false);
     _io.SendStopBit();
     interrupts();
 }

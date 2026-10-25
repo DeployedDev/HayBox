@@ -13,10 +13,11 @@
  * single-wire bit transport lives in JoybusIO; this class adds the GameCube
  * command handling (0x00/0xFF ID, 0x41/0x42 origin, 0x40 poll).
  *
- * CALL CONTRACT: when WaitForPoll() returns OK, interrupts are left MASKED and
- * the caller must call SendReport() immediately (build the report first). That
- * keeps the poll->response turnaround inside the console's timing window.
- * SendReport() re-enables interrupts.
+ * CALL CONTRACT (same shape as joybus-pio): WaitForPollStart() returns OK as
+ * soon as a poll's first byte (0x40) arrives, with interrupts left MASKED. The
+ * caller reads inputs and builds the report while the rest of the poll is
+ * still being sent, then calls WaitForPollEnd() (waits for the poll to finish)
+ * and SendReport(), which replies and re-enables interrupts.
  *
  * HARDWARE: the Frame1 is otherwise USB-only; data_pin must be an exposed GPIO
  * wired to the GameCube data line (plus ground + controller power).
@@ -37,7 +38,8 @@ class GamecubeConsole {
     // traffic, -1 if the pin was idle. Runs at most budget_ms.
     int DetectActive(uint32_t budget_ms);
 
-    GcPollStatus WaitForPoll();
+    GcPollStatus WaitForPollStart();
+    GcPollStatus WaitForPollEnd();
     void SendReport(const gc_report_t *report);
 
   private:

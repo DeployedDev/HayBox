@@ -19,15 +19,23 @@
  *
  * Everything else (the button->pin table, InputSource plumbing) is inherited
  * unchanged from GpioButtonInput.
+ *
+ * Reads use digitalReadFast() on a pin name resolved once at startup, rather
+ * than digitalRead() (which looks the pin up on every call and is slow on this
+ * core). On the console backends the buttons are read between the console's
+ * poll and our reply, as on the pico, so the scan must be quick - and the pico's
+ * own GPIO reads are single-register reads too.
  */
 class ActiveHighGpioButtonInput : public GpioButtonInput {
   public:
     ActiveHighGpioButtonInput(const GpioButtonMapping *button_mappings, size_t button_count)
         : GpioButtonInput(button_mappings, button_count) {
+        _pins = new PinName[_button_count];
         // The base constructor configured these as pull-ups; switch them to
         // pull-downs so an idle (undriven) optical line reads LOW.
         for (size_t i = 0; i < _button_count; i++) {
             gpio::init_pin(_button_mappings[i].pin, gpio::GpioMode::GPIO_INPUT_PULLDOWN);
+            _pins[i] = digitalPinToPinName(_button_mappings[i].pin);
         }
     }
 
@@ -37,10 +45,13 @@ class ActiveHighGpioButtonInput : public GpioButtonInput {
             set_button(
                 inputs.buttons,
                 _button_mappings[i].button,
-                gpio::read_digital(_button_mappings[i].pin)
+                digitalReadFast(_pins[i]) == HIGH
             );
         }
     }
+
+  private:
+    PinName *_pins;  // resolved once in the constructor
 };
 
 #endif

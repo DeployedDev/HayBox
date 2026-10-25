@@ -20,10 +20,19 @@ CommunicationBackendId N64Backend::BackendId() {
 }
 
 void N64Backend::SendReport() {
-    // Scan + build the report BEFORE waiting for the poll (see GamecubeBackend
-    // for why: the bit-bang can't read the command in the background, so we
-    // respond the instant the 0x01 poll arrives). Mapping matches HAL/pico.
-    ScanInputs();
+    // Same order as the pico: update slower inputs before waiting for the poll,
+    // then read the fast inputs (the buttons) and run the game mode in response
+    // to the poll, so the report reflects the inputs at poll time rather than
+    // as they were one poll earlier. Mapping matches HAL/pico.
+    ScanInputs(InputScanSpeed::SLOW);
+    ScanInputs(InputScanSpeed::MEDIUM);
+
+    // Leaves IRQs masked until SendReport() below.
+    if (_n64.WaitForPoll() != N64PollStatus::OK) {
+        return;
+    }
+
+    ScanInputs(InputScanSpeed::FAST);
     UpdateOutputs();
 
     // Digital outputs.
@@ -47,7 +56,5 @@ void N64Backend::SendReport() {
     _report.stick_x = _outputs.leftStickX - 128;
     _report.stick_y = _outputs.leftStickY - 128;
 
-    if (_n64.WaitForPoll() == N64PollStatus::OK) {
-        _n64.SendReport(&_report);
-    }
+    _n64.SendReport(&_report);
 }
