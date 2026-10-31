@@ -170,32 +170,39 @@ bool pin_idles_high(uint8_t pin) {
 }
 
 // After a lock: act as a real N64 controller on `pin`. Reads a handful of the
-// Frame1's buttons directly (active-high optical sensors: pressed = HIGH) and
-// adds a slow auto stick sweep so evtest moves even with no input pressed.
+// Frame1's buttons directly and adds a slow auto stick sweep so evtest moves
+// even with no input pressed. Button polarity follows the PB12/PB13 straps, as
+// in the main firmware (config.cpp): both low = Heavy (optical, pressed reads
+// HIGH), either high = Light (mechanical, pressed reads LOW). Pull-ups on all.
 void run_n64_controller(uint8_t pin) {
     N64Console n64(pin);
     n64.Init();
 
-    pinMode(PB1, INPUT);   // A
-    pinMode(PE15, INPUT);  // B
-    pinMode(PE11, INPUT);  // Z
-    pinMode(PD2, INPUT);   // Start
-    pinMode(PE2, INPUT);   // Right
-    pinMode(PE3, INPUT);   // Down
-    pinMode(PE4, INPUT);   // Left
-    pinMode(PE9, INPUT);   // Up
+    pinMode(PB12, INPUT_PULLUP);
+    pinMode(PB13, INPUT_PULLUP);
+    delayMicroseconds(50);
+    const int pressed = (digitalRead(PB12) == LOW && digitalRead(PB13) == LOW) ? HIGH : LOW;
+
+    pinMode(PB1, INPUT_PULLUP);   // A
+    pinMode(PE15, INPUT_PULLUP);  // B
+    pinMode(PE11, INPUT_PULLUP);  // Z
+    pinMode(PD2, INPUT_PULLUP);   // Start
+    pinMode(PE2, INPUT_PULLUP);   // Right
+    pinMode(PE3, INPUT_PULLUP);   // Down
+    pinMode(PE4, INPUT_PULLUP);   // Left
+    pinMode(PE9, INPUT_PULLUP);   // Up
 
     uint32_t t0 = millis();
     for (;;) {
         n64_report_t rep = default_n64_report;
-        rep.a = (digitalRead(PB1) == HIGH);
-        rep.b = (digitalRead(PE15) == HIGH);
-        rep.z = (digitalRead(PE11) == HIGH);
-        rep.start = (digitalRead(PD2) == HIGH);
-        rep.dpad_right = (digitalRead(PE2) == HIGH);
-        rep.dpad_down = (digitalRead(PE3) == HIGH);
-        rep.dpad_left = (digitalRead(PE4) == HIGH);
-        rep.dpad_up = (digitalRead(PE9) == HIGH);
+        rep.a = (digitalRead(PB1) == pressed);
+        rep.b = (digitalRead(PE15) == pressed);
+        rep.z = (digitalRead(PE11) == pressed);
+        rep.start = (digitalRead(PD2) == pressed);
+        rep.dpad_right = (digitalRead(PE2) == pressed);
+        rep.dpad_down = (digitalRead(PE3) == pressed);
+        rep.dpad_left = (digitalRead(PE4) == pressed);
+        rep.dpad_up = (digitalRead(PE9) == pressed);
 
         int phase = (int)(((millis() - t0) / 500) % 4);
         rep.stick_x = (phase == 1) ? 60 : (phase == 3) ? -60 : 0;
