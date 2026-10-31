@@ -82,7 +82,11 @@ void TUKeyboard::releaseAll() {
 
 void TUKeyboard::sendState() {
     while (!TUCompositeHID::_usb_hid.ready()) {
+#ifdef ARDUINO_ARCH_RP2040
         tight_loop_contents();
+#else
+        yield();
+#endif
     }
     TUCompositeHID::_usb_hid.sendReport(_report_id, &_report, sizeof(hid_keyboard_report_t));
 }

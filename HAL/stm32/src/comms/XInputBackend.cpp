@@ -1,0 +1,75 @@
+#include "comms/XInputBackend.hpp"
+
+#include "core/CommunicationBackend.hpp"
+#include "core/state.hpp"
+
+// Declares Serial (Adafruit TinyUSB's CDC, our only Serial with HWSERIAL_NONE)
+// and TinyUSBDevice. On the pico Serial is a core-wide global, so the pico
+// version needs no such include; the XInput header alone does not provide it.
+#include <Adafruit_TinyUSB.h>
+#include <Adafruit_USBD_XInput.hpp>
+
+/*
+ * Mirrors HAL/pico/src/comms/XInputBackend.cpp. Platform differences: the
+ * explicit <Adafruit_TinyUSB.h> include above, and the wait-for-ready loop -
+ * the RP2040 core services TinyUSB in the background so it can spin on
+ * tight_loop_contents(), whereas on STM32duino the device task is only pumped
+ * when we call it, so we yield() (which runs tud_task()) instead.
+ */
+
+XInputBackend::XInputBackend(
+    InputState &inputs,
+    InputSource **input_sources,
+    size_t input_source_count
+)
+    : CommunicationBackend(inputs, input_sources, input_source_count),
+      _xinput() {
+    Serial.end();
+    _xinput.begin();
+    Serial.begin(115200);
+
+    TinyUSBDevice.setID(0x0738, 0x4726);
+}
+
+CommunicationBackendId XInputBackend::BackendId() {
+    return COMMS_BACKEND_XINPUT;
+}
+
+void XInputBackend::SendReport() {
+    ScanInputs(InputScanSpeed::SLOW);
+    ScanInputs(InputScanSpeed::MEDIUM);
+
+    while (!_xinput.ready()) {
+        yield();
+    }
+
+    ScanInputs(InputScanSpeed::FAST);
+
+    UpdateOutputs();
+
+    // Digital outputs
+    _report.a = _outputs.a;
+    _report.b = _outputs.b;
+    _report.x = _outputs.x;
+    _report.y = _outputs.y;
+    _report.lb = _outputs.buttonL;
+    _report.rb = _outputs.buttonR;
+    _report.lt = _outputs.triggerLDigital ? 255 : _outputs.triggerLAnalog;
+    _report.rt = _outputs.triggerRDigital ? 255 : _outputs.triggerRAnalog;
+    _report.start = _outputs.start;
+    _report.back = _outputs.select;
+    _report.home = _outputs.home;
+    _report.dpad_up = _outputs.dpadUp;
+    _report.dpad_down = _outputs.dpadDown;
+    _report.dpad_left = _outputs.dpadLeft;
+    _report.dpad_right = _outputs.dpadRight;
+    _report.ls = _outputs.leftStickClick;
+    _report.rs = _outputs.rightStickClick;
+
+    _report.lx = (_outputs.leftStickX - 128) * 65535 / 255 + 128;
+    _report.ly = (_outputs.leftStickY - 128) * 65535 / 255 + 128;
+    _report.rx = (_outputs.rightStickX - 128) * 65535 / 255 + 128;
+    _report.ry = (_outputs.rightStickY - 128) * 65535 / 255 + 128;
+
+    _xinput.sendReport(&_report);
+}
