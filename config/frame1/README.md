@@ -14,8 +14,8 @@ mechanical switches pull it LOW. As in the stock firmware, the board tells them
 apart at boot from two strap inputs (PB12/PB13): both low means a Heavy, either
 high means a Light. Buttons use the pico's 5 ms debounce on both models.
 
-The Heavy has been tested on hardware. The Light follows the stock firmware's
-logic but has not been tested yet; reports are welcome.
+Both models have been tested on hardware with the same firmware build: USB mode
+(evtest and Dolphin) and N64 (through a Raphnet N64-to-USB adapter).
 
 ## USB modes (hold while plugging in)
 
