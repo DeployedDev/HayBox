@@ -20,9 +20,9 @@ Config config = default_config;
 /*
  * Frame1 button -> GPIO map (shared by the Heavy and the Light).
  *
- * Pins were captured and validated live on a Heavy, and match the pin set
- * configured by Frame1's stock firmware (v2.3.1), which is a single build for
- * both models. The Button enum assignments follow the standard
+ * Pins were captured live on-device and validated on both the Heavy and the
+ * Light, and match the pin set configured by Frame1's stock firmware (v2.3.1),
+ * which is a single build for both models. The Button enum assignments follow the standard
  * B0XX/HayBox semantics (verified against Melee20Button + GamecubeBackend):
  * e.g. Z == buttonR (BTN_RF3), R == triggerRDigital (BTN_RF5), L ==
  * triggerLDigital (BTN_LF4). Comments give the Frame1's own silk-screen label.
@@ -67,8 +67,8 @@ const size_t button_count = sizeof(button_mappings) / sizeof(GpioButtonMapping);
  * button pin idles LOW and reads HIGH when pressed, with pull-ups or pull-downs
  * alike (the optical switches drive the pin). So both straps low means the
  * Heavy (active-high); a strap high means the Light, whose mechanical switches
- * pull the pin LOW when pressed (active-low). Button pins use pull-ups on both
- * models, as in stock.
+ * pull the pin LOW when pressed (active-low; confirmed on a Light). Button pins
+ * use pull-ups on both models, as in stock.
  */
 static bool frame1_buttons_active_high() {
     pinMode(PB12, INPUT_PULLUP);
