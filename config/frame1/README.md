@@ -34,15 +34,26 @@ Left / Down / Right / B / R, Mod Y + Start + L) are identical to stock HayBox.
 
 Plugged into a console instead of a PC, the board detects the console the same
 way the pico does (no USB host after 500 ms, then a GameCube probe, then N64)
-and runs that backend. No wiring is needed: the GameCube/N64 data line is
-carried on the Frame1's USB-C port (pin `PD3`), so a USB-C to GameCube or N64
-cable (Retro-C style) plugs straight in.
+and runs that backend. No wiring is needed: the Frame1's USB-C port follows the
+[Retro-C](https://docs.handheldlegend.com/s/portal/doc/gamecube-retro-c-cable-information-PdlHLu5LBR)
+pinout, so a Retro-C-compatible USB-C to GameCube or N64 cable plugs straight in,
+either way up:
+
+| USB-C pins | Retro-C role | On the Frame1 |
+|---|---|---|
+| A11, B11 | Console data | Joybus data line, `PD3` |
+| A2, B2 | Console 3.3 V | Connected |
+| VBUS / GND | 5 V / ground | Normal USB power and ground |
+
+This was checked with a multimeter through a breakout board: those four pins
+are the only ones connected besides USB 2.0 (D+/D-, CC); SBU and the other
+high-speed pins are unused.
 
 | Console | Status |
 |---|---|
 | **N64** | Working. Validated through a Raphnet N64-to-USB adapter (HID mode, and the raphnetraw emulator plugin with Super Mario 64 and Ocarina of Time); not yet on a real console. |
 | **GameCube / Wii** | Ported, untested. Needs a GameCube console or GameCube adapter to validate. |
-| **NES / SNES** | Not wired, as on the reference pico board (`nes_*` pins are `-1`). |
+| **NES / SNES** | Not wired, as on the reference pico board (`nes_*` pins are `-1`). NES/SNES need three data lines and the USB-C port has no spare ones, so this needs a hardware change. |
 
 The STM32F303 has no PIO, so the Joybus protocol is a cycle-timed bit-bang
 implementation of what the pico does with PIO. Like the pico, it answers the
