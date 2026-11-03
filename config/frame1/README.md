@@ -78,8 +78,16 @@ unanswered (no pak emulated).
 
 ## Configurator and saved config
 
-Hold **Start** while plugging in to enter the Configurator, then connect with
-the HayBox web configurator over the serial port it presents.
+Hold **Start** while plugging in to enter configurator mode. HayBox has no
+official hosted configurator; use a HayBox-compatible one such as
+[remapp.ing](https://remapp.ing/) (tested with the Frame1: remapping and saving
+both work). It uses Web Serial, so open it in a Chromium-based browser (Chrome,
+Chromium, Brave, Edge), click Connect and pick the Frame1's serial port.
+
+remapp.ing does not auto-detect the Frame1 (the firmware reports its device
+name as `frame1`), so choose the **Open Frame1** layout when asked. It has the
+same buttons in the same positions with the same HayBox button assignments, so
+it is an exact match, not an approximation.
 
 **Linux: serial port permissions.** Your user must be able to open the port
 (`/dev/ttyACM0`), or the browser logs `Failed to open serial port:
