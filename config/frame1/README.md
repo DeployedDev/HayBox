@@ -26,6 +26,9 @@ Both models have been tested on hardware with the same firmware build: USB mode
 | **X** | Nintendo Switch | `0f0d:0092` HORI POKKEN CONTROLLER |
 | **Start** | Configurator (serial) | `239a:cafe` CDC serial port |
 
+Nintendo Switch mode connects directly over USB (dock or USB-C) as a wired
+controller, starting in the Ultimate profile; it has been tested on a Switch.
+
 **Up** is reserved: it enters the DFU bootloader (a hardware check that runs
 before the firmware). Game-mode profiles and their combos (Mod X + Start + L /
 Left / Down / Right / B / R, Mod Y + Start + L) are identical to stock HayBox.
@@ -52,7 +55,7 @@ high-speed pins are unused.
 | Console | Status |
 |---|---|
 | **N64** | Working. Validated through a Raphnet N64-to-USB adapter (HID mode, and the raphnetraw emulator plugin with Super Mario 64 and Ocarina of Time); not yet on a real console. |
-| **GameCube / Wii** | Ported, untested. Needs a GameCube console or GameCube adapter to validate. |
+| **GameCube / Wii** | Working. Validated through a Wii U style GameCube adapter (Input Integrity Lossless adapter) in Dolphin, with exact stick and trigger values; not yet on a real GameCube/Wii console. |
 | **NES / SNES** | Not wired, as on the reference pico board (`nes_*` pins are `-1`). NES/SNES need three data lines and the USB-C port has no spare ones, so this needs a hardware change. |
 
 The STM32F303 has no PIO, so the Joybus protocol is a cycle-timed bit-bang
@@ -198,8 +201,9 @@ diagonals). For example, Mod X + Up-Right + C-Right in Project+ mode sends
 (72, 61) and reads about (42, 36) in TAS Input. This applies to any HayBox
 controller over USB, not just the Frame1. For exact values in Dolphin, connect
 through a Wii U style GameCube adapter (port set to "GameCube Adapter for Wii
-U") with a USB-C to GameCube cable, so the board runs its GameCube mode
-(not yet validated on the Frame1; see **Console support**).
+U") with a USB-C to GameCube cable, so the board runs its GameCube mode.
+Tested this way, values arrive exactly as sent (e.g. Mod X + Right reads 181,
+LS 49, MS 94 in TAS Input).
 
 ## Diagnostic build
 
