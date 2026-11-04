@@ -76,9 +76,16 @@ static bool frame1_buttons_active_high() {
     return digitalRead(PB12) == LOW && digitalRead(PB13) == LOW;
 }
 
-/* The Frame1 is USB-only: no joybus / NES / mux / nunchuk pins. */
+/*
+ * Console (wired-protocol) pins. joybus_data = PD3 is the GameCube/N64 single-
+ * wire data line, found and validated on hardware. The Frame1's USB-C port
+ * follows the Retro-C pinout (data on A11/B11), so a Retro-C style USB-C to
+ * GameCube or N64 cable connects it with no wiring. The Frame1 has no NES/SNES
+ * lines; the nes_* fields are left unset, as in this tree's pico config (see
+ * console_detection.cpp). mux / nunchuk unused.
+ */
 const Pinout pinout = {
-    .joybus_data = 0,
+    .joybus_data = PD3,
     .mux = -1,
     .nunchuk_detect = -1,
     .nunchuk_sda = -1,

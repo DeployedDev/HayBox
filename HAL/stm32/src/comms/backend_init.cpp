@@ -3,8 +3,12 @@
 #include "comms/B0XXInputViewer.hpp"
 #include "comms/ConfiguratorBackend.hpp"
 #include "comms/DInputBackend.hpp"
+#include "comms/GamecubeBackend.hpp"
+#include "comms/N64Backend.hpp"
+#include "comms/NesBackend.hpp"
 #include "comms/NintendoSwitchBackend.hpp"
 #include "comms/PumpedSerial.hpp"
+#include "comms/SnesBackend.hpp"
 #include "comms/XInputBackend.hpp"
 #include "core/CommunicationBackend.hpp"
 #include "core/mode_selection.hpp"
@@ -19,16 +23,18 @@
 /*
  * STM32 (Frame1) backend initialization.
  *
- * Mirrors HAL/pico/src/comms/backend_init.cpp, trimmed to the USB subset that
- * applies to a USB-only board (no joybus/NES console backends). The plug-in
- * button holds and defaults come from config_defaults.hpp and match the pico
- * defaults of this (ruleset-compliant) tree: XInput by default, hold Z for
- * DInput, hold X for Nintendo Switch, hold C-Down for the Configurator. As on
- * the pico, an unknown backend id falls back to the Configurator.
+ * Mirrors HAL/pico/src/comms/backend_init.cpp, with the same backend set: the
+ * USB backends (XInput, DInput, Nintendo Switch, Configurator) and the console
+ * backends (GameCube, N64, NES, SNES). The plug-in button holds and defaults
+ * come from config_defaults.hpp and match the pico defaults of this
+ * (ruleset-compliant) tree: XInput by default, hold Z for DInput, hold X for
+ * Nintendo Switch, hold C-Down for the Configurator; otherwise console
+ * detection picks the backend. As on the pico, an unknown backend id falls
+ * back to the Configurator.
  *
- * The RP2040 version also consults the watchdog SCRATCH registers to carry a
- * temporarily-selected backend across a reboot; there is no equivalent here
- * yet, so backend selection is purely button-hold + configured default.
+ * The RP2040 version also checks the watchdog SCRATCH registers for a backend
+ * chosen in its OLED config menu before a reboot. The Frame1 has no display or
+ * config menu, so nothing sets one and that check is not needed here.
  */
 
 size_t initialize_backends(
@@ -130,7 +136,6 @@ void init_primary_backend(
     Config &config,
     const Pinout &pinout
 ) {
-    (void)pinout;
     switch (backend_id) {
         case COMMS_BACKEND_XINPUT:
             if (primary_backend == nullptr) {
@@ -150,6 +155,32 @@ void init_primary_backend(
                 TUKeyboard::registerDescriptor();
                 primary_backend = new DInputBackend(inputs, input_sources, input_source_count);
             }
+            break;
+        case COMMS_BACKEND_GAMECUBE:
+            delete primary_backend;
+            primary_backend = new GamecubeBackend(
+                inputs, input_sources, input_source_count, pinout.joybus_data
+            );
+            break;
+        case COMMS_BACKEND_N64:
+            delete primary_backend;
+            primary_backend = new N64Backend(
+                inputs, input_sources, input_source_count, pinout.joybus_data
+            );
+            break;
+        case COMMS_BACKEND_NES:
+            delete primary_backend;
+            primary_backend = new NesBackend(
+                inputs, input_sources, input_source_count,
+                pinout.nes_data, pinout.nes_clock, pinout.nes_latch
+            );
+            break;
+        case COMMS_BACKEND_SNES:
+            delete primary_backend;
+            primary_backend = new SnesBackend(
+                inputs, input_sources, input_source_count,
+                pinout.nes_data, pinout.nes_clock, pinout.nes_latch
+            );
             break;
         case COMMS_BACKEND_UNSPECIFIED: // Fall back to configurator if invalid backend selected.
         case COMMS_BACKEND_CONFIGURATOR:

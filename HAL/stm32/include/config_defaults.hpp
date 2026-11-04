@@ -8,10 +8,11 @@
  * STM32 (Frame1) default config.
  *
  * Identical to HAL/pico/include/config_defaults.hpp (the ruleset-compliant
- * defaults) minus the console backends (GameCube, N64, NES, SNES), which a
- * USB-only board cannot offer. Game-mode profiles, their activation combos,
- * SOCD settings and the USB plug-in holds are byte-for-byte the pico's, so
- * nothing needs relearning from any other board running this firmware.
+ * defaults), including the backend list: XInput, DInput, Nintendo Switch,
+ * GameCube, N64, NES, SNES and the Configurator. Game-mode profiles, their
+ * activation combos, SOCD settings and the plug-in holds are byte-for-byte the
+ * pico's, so nothing needs relearning from any other board running this
+ * firmware.
  */
 
 // clang-format off
@@ -98,7 +99,7 @@ const Config default_config = {
             .keyboard_mode_config = 1,
         },
     },
-    .communication_backend_configs_count = 4,
+    .communication_backend_configs_count = 8,
     .communication_backend_configs = {
         CommunicationBackendConfig {
             .backend_id = COMMS_BACKEND_XINPUT,
@@ -115,6 +116,26 @@ const Config default_config = {
             .default_mode_config = 3,
             .activation_binding_count = 1,
             .activation_binding = { BTN_RF2 },
+        },
+        CommunicationBackendConfig {
+            .backend_id = COMMS_BACKEND_GAMECUBE,
+            .default_mode_config = 1,
+        },
+        CommunicationBackendConfig {
+            .backend_id = COMMS_BACKEND_N64,
+            .default_mode_config = 1,
+        },
+        CommunicationBackendConfig {
+            .backend_id = COMMS_BACKEND_NES,
+            .default_mode_config = 1,
+            .activation_binding_count = 1,
+            .activation_binding = { BTN_LT1 },
+        },
+        CommunicationBackendConfig {
+            .backend_id = COMMS_BACKEND_SNES,
+            .default_mode_config = 1,
+            .activation_binding_count = 1,
+            .activation_binding = { BTN_LT2 },
         },
         CommunicationBackendConfig {
             .backend_id = COMMS_BACKEND_CONFIGURATOR,
