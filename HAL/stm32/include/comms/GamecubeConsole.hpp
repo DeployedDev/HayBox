@@ -39,12 +39,22 @@ class GamecubeConsole {
     // traffic, -1 if the pin was idle. Runs at most budget_ms.
     int DetectActive(uint32_t budget_ms);
 
-    GcPollStatus WaitForPollStart();
+    // With service_melee_ticks, also runs the Melee limiter's 2 kHz ticks (see
+    // MeleeTicker.hpp) while waiting, keeping them clear of the expected poll.
+    GcPollStatus WaitForPollStart(bool service_melee_ticks = false);
     GcPollStatus WaitForPollEnd();
     void SendReport(const gc_report_t *report);
 
   private:
     JoybusIO _io;
+
+    // Poll timing, learned from the console's own polls, so Melee ticks can be
+    // scheduled where no poll is expected.
+    bool TickIsSafe(uint32_t now_us) const;
+    void NotePoll(uint32_t now_us);
+    uint32_t _last_poll_us = 0;
+    uint32_t _poll_intervals_us[4] = { 0, 0, 0, 0 };
+    uint8_t _poll_count = 0;  // polls seen (saturates)
 };
 
 #endif

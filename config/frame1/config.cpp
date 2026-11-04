@@ -1,3 +1,4 @@
+#include "comms/MeleeTicker.hpp"
 #include "comms/backend_init.hpp"
 #include "config_defaults.hpp"
 #include "core/CommunicationBackend.hpp"
@@ -96,6 +97,21 @@ CommunicationBackend **backends = nullptr;
 size_t backend_count;
 KeyboardMode *current_kb_mode = nullptr;
 
+/*
+ * One step of the ruleset-compliant Melee pipeline, run at 2 kHz by
+ * MeleeTicker: scan the buttons, run the game mode, and run the output limiter
+ * (travel time, SOCD/fuzzing limits). The backends then ship the limited
+ * outputs. See the comment in loop().
+ */
+static void melee_tick() {
+    for (size_t i = 0; i < backend_count; i++) {
+        backends[i]->ScanInputs();
+        backends[i]->UpdateOutputs();
+        // The limiter's time unit is 4 us.
+        backends[i]->LimitOutputs(MELEE_TICK_INTERVAL_US / 4);
+    }
+}
+
 void setup() {
     // STM32duino is a "non-built-in" TinyUSB core: unlike the RP2040 core, it does
     // not bring up the TinyUSB device stack before setup(), so we must. This runs
@@ -135,6 +151,8 @@ void setup() {
 
     setup_mode_activation_bindings(config.game_mode_configs, config.game_mode_configs_count);
 
+    melee_ticker_init(&melee_tick);
+
     // The backends have registered their USB (HID) interface now, so re-present to
     // the host to force a clean enumeration of the full descriptor set.
     TinyUSBDevice.detach();
@@ -153,12 +171,14 @@ void loop() {
      *
      * On the RP2040 the second core scans the buttons, runs the game mode and
      * the output limiter (travel time, SOCD/fuzzing limits) at exactly 2 kHz,
-     * while the first core only ships the limited outputs over USB. The F303
-     * has one core, so the same 2 kHz cadence is kept here on a fixed 500 us
-     * schedule: the limiter counts calls as time, so it must be called at a
-     * steady rate. The USB backends' SendReport() is non-blocking in Melee mode
-     * (see HAL/stm32/src/comms) so it can never stall this schedule. Outside
-     * Melee the backends scan and compute inside SendReport(), as on the pico.
+     * while the first core only ships the limited outputs. The F303 has one
+     * core, so the same 2 kHz cadence is kept on a fixed 500 us schedule by
+     * MeleeTicker (melee_tick() above): the limiter counts calls as time, so it
+     * must be called at a steady rate. The USB backends' SendReport() is
+     * non-blocking in Melee mode (see HAL/stm32/src/comms) so it can never stall
+     * this schedule; the GameCube backend runs the ticks itself while it waits
+     * for the console's poll. Outside Melee the backends scan and compute
+     * inside SendReport(), as on the pico.
      */
     bool is_melee = false;
     for (size_t i = 0; i < backend_count; i++) {
@@ -167,24 +187,7 @@ void loop() {
         }
     }
     if (is_melee) {
-        const uint32_t interval = 500; // microseconds
-        const uint32_t quarterInterval = interval / 4; // limiter time unit is 4 us
-        static uint32_t next_sample_us = micros();
-        const uint32_t now = micros();
-        if ((int32_t)(now - next_sample_us) >= 0) {
-            next_sample_us += interval;
-            if ((int32_t)(now - next_sample_us) >= (int32_t)interval) {
-                // Fell more than a whole period behind (e.g. right after a mode
-                // switch): resynchronise instead of running catch-up samples
-                // back-to-back, which would skew the limiter's time base.
-                next_sample_us = now + interval;
-            }
-            for (size_t i = 0; i < backend_count; i++) {
-                backends[i]->ScanInputs();
-                backends[i]->UpdateOutputs();
-                backends[i]->LimitOutputs(quarterInterval);
-            }
-        }
+        melee_ticker_run(micros());
     }
 
     for (size_t i = 0; i < backend_count; i++) {

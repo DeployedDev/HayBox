@@ -1,5 +1,6 @@
 #include "comms/GamecubeBackend.hpp"
 
+#include "comms/MeleeTicker.hpp"
 #include "core/CommunicationBackend.hpp"
 #include "core/state.hpp"
 
@@ -20,46 +21,71 @@ CommunicationBackendId GamecubeBackend::BackendId() {
 }
 
 void GamecubeBackend::SendReport() {
-    // Same order as the pico: update slower inputs before waiting for the poll,
-    // then read the fast inputs (the buttons) and run the game mode while the
-    // rest of the poll is still arriving, so the report reflects the inputs at
-    // poll time. (The pico also waits 40 us first to sample a little later; we
-    // skip that so the reply isn't pushed past the end of the poll.)
-    ScanInputs(InputScanSpeed::SLOW);
-    ScanInputs(InputScanSpeed::MEDIUM);
+    /*
+     * As on this tree's pico GamecubeBackend: outside Melee, update slower
+     * inputs before waiting for the poll, then read the buttons and run the
+     * game mode while the rest of the poll is still arriving. In Melee, the
+     * inputs, game mode and output limiter run on the fixed 2 kHz tick instead
+     * (MeleeTicker; on the pico, the second core), and the report is built
+     * from the limited outputs. Here the ticks are run while waiting for the
+     * poll, kept clear of the expected poll time, plus any tick that came due
+     * during the poll and reply.
+     *
+     * (The pico also waits 40 us after the poll starts to sample a little
+     * later; we skip that so the reply isn't pushed past the end of the poll.)
+     */
+    const bool melee = isMelee();
+
+    if (!melee) {
+        ScanInputs(InputScanSpeed::SLOW);
+        ScanInputs(InputScanSpeed::MEDIUM);
+    }
 
     // Leaves IRQs masked until SendReport() below.
-    if (_gamecube.WaitForPollStart() != GcPollStatus::OK) {
+    if (_gamecube.WaitForPollStart(melee) != GcPollStatus::OK) {
         return;
     }
 
-    ScanInputs(InputScanSpeed::FAST);
-    UpdateOutputs();
+    if (!melee) {
+        ScanInputs(InputScanSpeed::FAST);
+        UpdateOutputs();
+    }
+
+    const OutputState &out = melee ? _finalOutputs : _outputs;
 
     // Digital outputs - mapping identical to HAL/pico GamecubeBackend.
-    _report.a = _outputs.a;
-    _report.b = _outputs.b;
-    _report.x = _outputs.x;
-    _report.y = _outputs.y;
-    _report.z = _outputs.buttonR;
-    _report.l = _outputs.triggerLDigital;
-    _report.r = _outputs.triggerRDigital;
-    _report.start = _outputs.start;
-    _report.dpad_left = _outputs.dpadLeft | _outputs.select;
-    _report.dpad_right = _outputs.dpadRight | _outputs.home;
-    _report.dpad_down = _outputs.dpadDown;
-    _report.dpad_up = _outputs.dpadUp;
+    _report.a = out.a;
+    _report.b = out.b;
+    _report.x = out.x;
+    _report.y = out.y;
+    _report.z = out.buttonR;
+    _report.l = out.triggerLDigital;
+    _report.r = out.triggerRDigital;
+    _report.start = out.start;
+    _report.dpad_left = out.dpadLeft | out.select;
+    _report.dpad_right = out.dpadRight | out.home;
+    _report.dpad_down = out.dpadDown;
+    _report.dpad_up = out.dpadUp;
 
     // Analog outputs.
-    _report.stick_x = _outputs.leftStickX;
-    _report.stick_y = _outputs.leftStickY;
-    _report.cstick_x = _outputs.rightStickX;
-    _report.cstick_y = _outputs.rightStickY;
-    _report.l_analog = _outputs.triggerLAnalog;
-    _report.r_analog = _outputs.triggerRAnalog;
+    _report.stick_x = out.leftStickX;
+    _report.stick_y = out.leftStickY;
+    _report.cstick_x = out.rightStickX;
+    _report.cstick_y = out.rightStickY;
+    _report.l_analog = out.triggerLAnalog;
+    _report.r_analog = out.triggerRAnalog;
 
     // Send outputs to the console once the poll has finished.
     if (_gamecube.WaitForPollEnd() == GcPollStatus::OK) {
         _gamecube.SendReport(&_report);
+    }
+
+    if (melee) {
+        // A tick that came due during the poll and reply (or that was held
+        // back because the poll was expected) runs now. At most one extra:
+        // the ticker resynchronises if it fell further behind.
+        if (melee_ticker_run(micros())) {
+            melee_ticker_run(micros());
+        }
     }
 }
