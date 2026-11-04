@@ -31,9 +31,11 @@ the next poll is expected (learned from the console's own polling); a tick
 held back for a poll runs right after the reply. Other game modes are
 unaffected by the limiter, as on the RP2040 boards.
 
-> **GameCube in Melee mode on this build is new and not yet tested on
-> hardware.** If inputs drop or the controller disconnects in Melee on a
-> GameCube adapter or console, please report it.
+Tested on hardware with this build: USB mode with the Melee limiter active,
+and GameCube mode (including Melee) through a Wii U style GameCube adapter
+(Input Integrity Lossless adapter) in Slippi Dolphin. If inputs ever drop or
+the controller disconnects in Melee on a GameCube adapter or console, please
+report it.
 
 This build is based on the **Legacy** release line (`Build23.1_RP2040_Legacy`,
 the Melee coordinate set the stock mode has always used). CarVac's tree also
@@ -92,8 +94,9 @@ are the only ones connected besides USB 2.0 (D+/D-, CC); SBU and the other
 high-speed pins are unused.
 
 Status below is from the upstream-HayBox Frame1 port, which shares this
-hardware layer; GameCube in Melee mode additionally uses the limiter
-scheduling described above.
+hardware layer. On this build, GameCube (including Melee mode with the limiter
+scheduling described above) has also been tested through the same adapter;
+N64 has not been tested on this build yet.
 
 | Console | Status |
 |---|---|
