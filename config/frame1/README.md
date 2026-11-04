@@ -149,9 +149,11 @@ The board uses standard STM32 DFU, so any DFU tool works. Options, easiest
 first (pick **one** DFU-driver-based tool per PC - they install different
 drivers for the DFU device and conflict):
 
-- **Frame1 firmware updater** (the vendor's tool). Hold **Up**, plug in, and
-  load `firmware.hex`. Confirm on one board first that it accepts a
-  third-party image; if it does, this is the simplest path for everyone.
+- **Frame1 firmware updater** (the vendor's tool). Confirmed to work. The
+  updater only accepts files whose name starts with **`Frame1`** (capital F),
+  so first rename `firmware.hex`, e.g. to `Frame1_HayBox.hex`. Then hold
+  **Up**, plug in, and load the renamed file. This is the simplest path for
+  most people.
 - **STM32CubeProgrammer** (ST's official GUI). Install it, hold **Up** and plug
   in, connection type **USB** -> Refresh -> Connect. In *Erasing &
   Programming*, browse to `firmware.hex` (the address is read from the file;
