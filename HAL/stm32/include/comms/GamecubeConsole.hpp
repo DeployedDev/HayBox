@@ -7,8 +7,8 @@
 #include <stdint.h>
 
 /*
- * STM32 (Frame1) GameCube / Wii Joybus device. Validated through a Wii U style
- * GameCube adapter; not yet on a real console.
+ * STM32 (Frame1) GameCube / Wii Joybus device. Validated on a real GameCube
+ * and Wii and through a Wii U style GameCube adapter.
  *
  * Replaces the pico HAL's GamecubeConsole (joybus-pio / RP2040 PIO). The
  * single-wire bit transport lives in JoybusIO; this class adds the GameCube

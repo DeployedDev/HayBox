@@ -6,7 +6,8 @@
 
 /*
  * Shared single-wire Joybus transport for the STM32 (Frame1). Validated on N64
- * (Raphnet adapter) and GameCube (Wii U style GameCube adapter).
+ * (Raphnet adapter) and GameCube (real GameCube and Wii, and a Wii U style
+ * GameCube adapter).
  *
  * GameCube and N64 both sit on this. It is the STM32 stand-in for the bit-level
  * half of JonnyHaystack/joybus-pio (which the RP2040 does in PIO): an open-drain

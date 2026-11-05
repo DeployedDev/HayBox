@@ -32,8 +32,9 @@ held back for a poll runs right after the reply. Other game modes are
 unaffected by the limiter, as on the RP2040 boards.
 
 Tested on hardware with this build: USB mode with the Melee limiter active,
-and GameCube mode (including Melee) through a Wii U style GameCube adapter
-(Input Integrity Lossless adapter) in Slippi Dolphin. If inputs ever drop or
+and GameCube mode on a real GameCube and a real Wii, and (including Melee)
+through a Wii U style GameCube adapter (Input Integrity Lossless adapter) in
+Slippi Dolphin. If inputs ever drop or
 the controller disconnects in Melee on a GameCube adapter or console, please
 report it.
 
@@ -94,14 +95,15 @@ are the only ones connected besides USB 2.0 (D+/D-, CC); SBU and the other
 high-speed pins are unused.
 
 Status below is from the upstream-HayBox Frame1 port, which shares this
-hardware layer. On this build, GameCube (including Melee mode with the limiter
-scheduling described above) has also been tested through the same adapter;
-N64 has not been tested on this build yet.
+hardware layer. On this build, GameCube has also been tested on a real
+GameCube and a real Wii, and (including Melee mode with the limiter
+scheduling described above) through the same adapter; N64 has not been
+tested on this build yet.
 
 | Console | Status |
 |---|---|
 | **N64** | Working. Validated through a Raphnet N64-to-USB adapter (HID mode, and the raphnetraw emulator plugin with Super Mario 64 and Ocarina of Time); not yet on a real console. |
-| **GameCube / Wii** | Working. Validated through a Wii U style GameCube adapter (Input Integrity Lossless adapter) in Dolphin, with exact stick and trigger values; not yet on a real GameCube/Wii console. |
+| **GameCube / Wii** | Working on a real GameCube and a real Wii (GameCube controller ports), and through a Wii U style GameCube adapter (Input Integrity Lossless adapter) in Dolphin, with exact stick and trigger values. |
 | **NES / SNES** | Not wired. NES/SNES need three data lines and the USB-C port has no spare ones, so this needs a hardware change. |
 
 The STM32F303 has no PIO, so the Joybus protocol is a cycle-timed bit-bang
